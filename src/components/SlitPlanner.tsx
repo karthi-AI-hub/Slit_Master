@@ -9,23 +9,38 @@ import { Scissors, Download, BarChart3, Trash2 } from "lucide-react";
 import { 
   getReels, 
   getFanSizes, 
+  getBottomSizes,
   getSlitResults,
   saveSlitResults,
   exportToCSV, 
+  saveReels,
   type SlitPlanResult 
 } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+
+
+type SlitPlanRow = SlitPlanResult & {
+  sideArr: { name: string; width: number }[];
+  botArr: { name: string; width: number }[];
+};
 
 export const SlitPlanner = () => {
   const [selectedReel, setSelectedReel] = useState("");
   const [selectedFan, setSelectedFan] = useState("");
   const [selectedUPS, setSelectedUPS] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
-  const [results, setResults] = useState<SlitPlanResult[]>(getSlitResults);
+  const [results, setResults] = useState<SlitPlanRow[]>(() => {
+    // Try to load previous results, but fallback to [] if missing sideArr/botArr
+    const raw = getSlitResults();
+    return Array.isArray(raw) && raw.length > 0 && 'sideArr' in raw[0] && 'botArr' in raw[0]
+      ? (raw as SlitPlanRow[])
+      : [];
+  });
   const { toast } = useToast();
 
   const reels = getReels();
   const fanSizes = getFanSizes();
+  const bottomSizes = getBottomSizes();
 
   const generateSlitPlan = () => {
     if (!selectedReel || !selectedFan || !selectedUPS || !selectedVariant) {
@@ -39,28 +54,16 @@ export const SlitPlanner = () => {
 
     const reel = reels.find(r => r.id === selectedReel);
     const fan = fanSizes.find(f => f.id === selectedFan);
-    
     if (!reel || !fan) return;
-
     const upsNumber = parseInt(selectedUPS);
     let requiredWidth = 0;
-
-    // Calculate required width based on UPS
     switch (upsNumber) {
-      case 1:
-        requiredWidth = fan.ups1Width;
-        break;
-      case 2:
-        requiredWidth = fan.ups2Width;
-        break;
-      case 3:
-        requiredWidth = fan.ups3Width;
-        break;
-      case 4:
-        requiredWidth = fan.ups4Width;
-        break;
+      case 1: requiredWidth = fan.ups1Width || 0; break;
+      case 2: requiredWidth = fan.ups2Width || 0; break;
+      case 3: requiredWidth = fan.ups3Width || 0; break;
+      case 4: requiredWidth = fan.ups4Width || 0; break;
+      default: requiredWidth = 0;
     }
-
     if (requiredWidth === 0) {
       toast({
         title: "Error",
@@ -70,54 +73,81 @@ export const SlitPlanner = () => {
       return;
     }
 
-    // Calculate combinations based on variant
-    const newResults: SlitPlanResult[] = [];
-    
-    if (selectedVariant === "Side only" || selectedVariant === "Both") {
-      const possibleCombinations = Math.floor(reel.width / requiredWidth);
-      for (let i = 1; i <= possibleCombinations; i++) {
+    const maxSide = 3, maxBottom = 4;
+    type SlitPlanRow = SlitPlanResult & {
+      sideArr: { name: string; width: number }[];
+      botArr: { name: string; width: number }[];
+    };
+    const newResults: SlitPlanRow[] = [];
+    // Side only
+    if (selectedVariant === "Side only") {
+      for (let i = 1; i <= maxSide; i++) {
         const usedWidth = i * requiredWidth;
+        if (usedWidth > reel.width) break;
         const waste = reel.width - usedWidth;
         const efficiency = (usedWidth / reel.width) * 100;
-        
         newResults.push({
           combination: `${i} × ${fan.name} (${selectedUPS}UPS)`,
           usedWidth: parseFloat(usedWidth.toFixed(2)),
           waste: parseFloat(waste.toFixed(2)),
-          efficiency: parseFloat(efficiency.toFixed(2))
+          efficiency: parseFloat(efficiency.toFixed(2)),
+          sideArr: Array(i).fill({ name: fan.name, width: requiredWidth }),
+          botArr: []
         });
       }
     }
-
-    if (selectedVariant === "Bottom only" || selectedVariant === "Both") {
-      // For bottom planning, we need bottom sizes
-      // This is a simplified implementation - in real scenario you'd combine with bottom sizes
-      const bottomWidth = fan.dieWidth; // Simplified assumption
-      const possibleBottoms = Math.floor(reel.width / bottomWidth);
-      
-      for (let i = 1; i <= possibleBottoms; i++) {
-        const usedWidth = i * bottomWidth;
-        const waste = reel.width - usedWidth;
-        const efficiency = (usedWidth / reel.width) * 100;
-        
-        newResults.push({
-          combination: `${i} × Bottom for ${fan.name}`,
-          usedWidth: parseFloat(usedWidth.toFixed(2)),
-          waste: parseFloat(waste.toFixed(2)),
-          efficiency: parseFloat(efficiency.toFixed(2))
+    // Bottom only
+    if (selectedVariant === "Bottom only") {
+      bottomSizes.forEach(bottom => {
+        for (let i = 1; i <= maxBottom; i++) {
+          const usedWidth = i * bottom.width;
+          if (usedWidth > reel.width) break;
+          const waste = reel.width - usedWidth;
+          const efficiency = (usedWidth / reel.width) * 100;
+          newResults.push({
+            combination: `${i} × Bottom (${bottom.name})`,
+            usedWidth: parseFloat(usedWidth.toFixed(2)),
+            waste: parseFloat(waste.toFixed(2)),
+            efficiency: parseFloat(efficiency.toFixed(2)),
+            sideArr: [],
+            botArr: Array(i).fill({ name: bottom.name, width: bottom.width })
+          });
+        }
+      });
+    }
+    // Both (mixed)
+    if (selectedVariant === "Both") {
+      for (let si = 1; si <= maxSide; si++) {
+        const sideUsed = si * requiredWidth;
+        bottomSizes.forEach(bottom => {
+          for (let bi = 1; bi <= maxBottom; bi++) {
+            const botUsed = bi * bottom.width;
+            const usedWidth = sideUsed + botUsed;
+            if (usedWidth > reel.width) continue;
+            if (si === 0 && bi === 0) continue;
+            const waste = reel.width - usedWidth;
+            const efficiency = (usedWidth / reel.width) * 100;
+            newResults.push({
+              combination: `${si} × ${fan.name} (${selectedUPS}UPS) + ${bi} × Bottom (${bottom.name})`,
+              usedWidth: parseFloat(usedWidth.toFixed(2)),
+              waste: parseFloat(waste.toFixed(2)),
+              efficiency: parseFloat(efficiency.toFixed(2)),
+              sideArr: Array(si).fill({ name: fan.name, width: requiredWidth }),
+              botArr: Array(bi).fill({ name: bottom.name, width: bottom.width })
+            });
+          }
         });
       }
     }
-
-    // Sort by efficiency (highest first)
-    newResults.sort((a, b) => b.efficiency - a.efficiency);
-    
-    setResults(newResults);
-    saveSlitResults(newResults);
-    
+    // Uniqueness
+    const uniq = new Map<string, SlitPlanRow>();
+    newResults.forEach(r => { const k = r.combination + '|' + r.usedWidth; if (!uniq.has(k)) uniq.set(k, r); });
+    const finalResults = Array.from(uniq.values()).sort((a, b) => b.efficiency - a.efficiency || a.waste - b.waste);
+    setResults(finalResults);
+    saveSlitResults(finalResults);
     toast({
       title: "Success",
-      description: `Generated ${newResults.length} slit plan combinations`,
+      description: `Generated ${finalResults.length} slit plan combinations`,
       variant: "default"
     });
   };
@@ -153,6 +183,37 @@ export const SlitPlanner = () => {
   const bestEfficiency = useMemo(() => {
     return results.length > 0 ? Math.max(...results.map(r => r.efficiency)) : 0;
   }, [results]);
+
+  // Create child reels from a result
+  const handleCreateChildReels = (result: {
+    sideArr: { name: string; width: number }[];
+    botArr: { name: string; width: number }[];
+  }) => {
+    const reel = reels.find(r => r.id === selectedReel);
+    if (!reel) return;
+    const updatedReels = reels.filter(r => r.id !== reel.id);
+    const pWidth = reel.width, pWeight = reel.weight;
+    function pushChild(w: number, note: string) {
+      const childWeight = pWeight ? +(pWeight * (w / pWidth)).toFixed(3) : 0;
+      updatedReels.push({
+        id: `R${String(updatedReels.length + 1).padStart(3, '0')}`,
+        width: +w,
+        gsm: reel.gsm,
+        weight: childWeight,
+        paperType: reel.paperType,
+        date: new Date().toISOString().slice(0, 10),
+        notes: note
+      });
+    }
+    result.sideArr.forEach((s) => pushChild(s.width, `Slit child ${s.name}`));
+    result.botArr.forEach((b) => pushChild(b.width, `Slit bottom ${b.name}`));
+    saveReels(updatedReels);
+    toast({
+      title: "Child reels created",
+      description: `Created ${result.sideArr.length + result.botArr.length} child reels`,
+      variant: "default"
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -305,6 +366,7 @@ export const SlitPlanner = () => {
                     <TableHead>Used Width (cm)</TableHead>
                     <TableHead>Waste (cm)</TableHead>
                     <TableHead>Efficiency (%)</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -320,6 +382,11 @@ export const SlitPlanner = () => {
                             <Badge variant="default" className="text-xs bg-success">Best</Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="outline" onClick={() => handleCreateChildReels(result)}>
+                          Create Child Reels
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

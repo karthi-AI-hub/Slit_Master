@@ -49,36 +49,32 @@ export const SheetCalculator = () => {
 
   const reels = getReels();
 
-  // Convert units to cm
-  const convertToCm = (value: number, unit: string): number => {
+  const convertToMeters = (value: number, unit: string): number => {
     switch (unit) {
-      case "mm": return value / 10;
-      case "m": return value * 100;
-      default: return value; // cm
+      case "mm": return value / 1000;
+      case "cm": return value / 100;
+      case "m": return value;
+      default: return value;
     }
   };
 
-  // Calculate results
   const calculationResult = useMemo((): CalculationResult | null => {
     if (!length || !width || !reelWeight || !gsm) return null;
 
-    const lengthCm = convertToCm(parseFloat(length), lengthUnit);
-    const widthCm = convertToCm(parseFloat(width), widthUnit);
+    const lengthM = convertToMeters(parseFloat(length), lengthUnit);
+    const widthM = convertToMeters(parseFloat(width), widthUnit);
     const reelWeightKg = parseFloat(reelWeight);
     const coreWeightKg = parseFloat(coreWeight);
     const gsmValue = parseFloat(gsm);
     const wastagePercent = parseFloat(wastage);
 
-    // Calculate areas
-    const netPaperWeight = reelWeightKg - coreWeightKg; // kg
-    const originalArea = (netPaperWeight * 1000) / gsmValue; // cm²
+    const netPaperWeight = Math.max(reelWeightKg - Math.max(coreWeightKg, 0), 0); // kg
+    const originalArea = (netPaperWeight * 1000) / gsmValue; // m²
     const wastedArea = (originalArea * wastagePercent) / 100;
     const usableArea = originalArea - wastedArea;
-    const sheetArea = lengthCm * widthCm;
-    
+    const sheetArea = lengthM * widthM; // m²
+
     let totalSheets = usableArea / sheetArea;
-    
-    // Apply rounding mode
     switch (roundingMode) {
       case "Down":
         totalSheets = Math.floor(totalSheets);
@@ -91,15 +87,15 @@ export const SheetCalculator = () => {
         break;
     }
 
-    const weightPerSheet = (netPaperWeight * 1000) / totalSheets; // grams
+    const w_per_sheet_g = gsmValue * sheetArea;
 
     return {
       totalSheets,
       netPaperArea: usableArea,
-      weightPerSheet,
+      weightPerSheet: w_per_sheet_g,
       calculationDetails: {
         originalArea,
-        coreArea: 0, // Core doesn't have area calculation
+        coreArea: 0,
         wastedArea,
         usableArea,
         sheetArea
@@ -202,8 +198,8 @@ export const SheetCalculator = () => {
         Wastage: `${wastage}%`,
         RoundingMode: roundingMode,
         TotalSheets: calculationResult.totalSheets,
-        NetPaperArea: `${calculationResult.netPaperArea.toFixed(2)} cm²`,
-        WeightPerSheet: `${calculationResult.weightPerSheet.toFixed(2)} g`
+        NetPaperArea: `${calculationResult.netPaperArea.toFixed(4)} m²`,
+        WeightPerSheet: `${calculationResult.weightPerSheet.toFixed(3)} g`
       }
     ];
 
@@ -418,11 +414,11 @@ export const SheetCalculator = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-3 bg-accent/10 rounded-lg text-center">
-                      <div className="text-xl font-semibold text-accent-foreground">{calculationResult.netPaperArea.toFixed(0)}</div>
-                      <div className="text-xs text-muted-foreground">Net Area (cm²)</div>
+                      <div className="text-xl font-semibold text-accent-foreground">{calculationResult.netPaperArea.toFixed(4)}</div>
+                      <div className="text-xs text-muted-foreground">Net Area (m²)</div>
                     </div>
                     <div className="p-3 bg-success/10 rounded-lg text-center">
-                      <div className="text-xl font-semibold text-success">{calculationResult.weightPerSheet.toFixed(2)}</div>
+                      <div className="text-xl font-semibold text-success">{calculationResult.weightPerSheet.toFixed(3)}</div>
                       <div className="text-xs text-muted-foreground">Weight/Sheet (g)</div>
                     </div>
                   </div>
@@ -439,19 +435,19 @@ export const SheetCalculator = () => {
                     <div className="text-sm space-y-2">
                       <div className="flex justify-between">
                         <span>Original Area:</span>
-                        <span>{calculationResult.calculationDetails.originalArea.toFixed(2)} cm²</span>
+                        <span>{calculationResult.calculationDetails.originalArea.toFixed(4)} m²</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Wasted Area:</span>
-                        <span>{calculationResult.calculationDetails.wastedArea.toFixed(2)} cm²</span>
+                        <span>{calculationResult.calculationDetails.wastedArea.toFixed(4)} m²</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Usable Area:</span>
-                        <span>{calculationResult.calculationDetails.usableArea.toFixed(2)} cm²</span>
+                        <span>{calculationResult.calculationDetails.usableArea.toFixed(4)} m²</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Sheet Area:</span>
-                        <span>{calculationResult.calculationDetails.sheetArea.toFixed(2)} cm²</span>
+                        <span>{calculationResult.calculationDetails.sheetArea.toFixed(4)} m²</span>
                       </div>
                     </div>
                   </CollapsibleContent>
