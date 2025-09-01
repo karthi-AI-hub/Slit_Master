@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SIC • Reels · Fans · Bottoms · Slit Planner · Sheet Calculator (v3 — Elegant · Reel Picker)</title>
+<style>
+  /* ===== Design System ===== */
+  :root{
+    --bg: #0b1220;                /* deep navy */
+    --bg-2: #0f1629;
+    --surface: #111a2f;
+    --card: #0f172a99;
+    --text: #e5f2ff;
+    --muted: #8aa1bf;
+    --line: #1e3357;
+    --brand-1: #6ee7ff;           /* cyan */
+    --brand-2: #a78bfa;           /* violet */
+    --brand-3: #22d3ee;           /* cyan 500 */
+    --accent: #84f3c9;            /* mint */
+    --radius: 16px;
+    --shadow-1: 0 10px 30px rgba(8,16,30,.35);
+    --shadow-2: 0 6px 18px rgba(8,16,30,.25);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--text); background:
+      radial-gradient(1200px 800px at 10% -10%, #16325c 0%, transparent 40%),
+      radial-gradient(900px 700px at 110% 10%, #2a185d 0%, transparent 45%),
+      linear-gradient(180deg, var(--bg), var(--bg-2));
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+    letter-spacing:.15px;
+  }
+  /* Header */
+  header{
+    position:sticky; top:0; z-index:5;
+    backdrop-filter: blur(12px) saturate(120%);
+    background: linear-gradient(90deg, #0c1328cc, #0c132888);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 18px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .logo{
+    width:42px; height:42px; flex:0 0 42px; border-radius:12px;
+    background: conic-gradient(from 210deg, var(--brand-1), var(--brand-2), var(--brand-3), var(--brand-1));
+    box-shadow: inset 0 0 18px rgba(255,255,255,.2), 0 6px 20px rgba(19,178,255,.25);
+  }
+  header .title{display:flex; flex-direction:column}
+  header .title h1{margin:0; font-size:18px; font-weight:800; letter-spacing:.3px}
+  header .title .tag{margin-top:2px; font-size:12px; color:var(--muted)}
+  .wrap{max-width:1200px; margin:20px auto; padding:0 18px}
+
+  /* Tabs */
+  .tabs{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px}
+  .tab{
+    position:relative; overflow:hidden;
+    border:1px solid var(--line);
+    background: linear-gradient(180deg,#0f1a33,#0e1830);
+    color:var(--text);
+    padding:10px 14px; border-radius:999px;
+    font-weight:700; font-size:13px; letter-spacing:.2px;
+    cursor:pointer; transition:transform .15s ease, box-shadow .2s ease, background .2s ease;
+    box-shadow: var(--shadow-2);
+  }
+  .tab::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(60% 140% at 0% 0%, #6ee7ff22, transparent 60%);
+    opacity:.9;
+  }
+  .tab:hover{ transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+  .tab.active{ background: linear-gradient(90deg, #0f1838, #121c46);
+    border-color:#3a5da3; box-shadow: 0 12px 28px rgba(64,158,255,.25);
+  }
+
+  /* Card */
+  .view{
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, #0e1831cc, #0b1229cc);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-1);
+  }
+  .view + .view{ margin-top:12px }
+
+  /* Form */
+  label{font-size:12px; color:var(--muted); display:block; margin:0 0 6px 2px}
+  input, select{
+    width:100%; padding:10px 12px; border-radius:12px;
+    background: #0c1933; color:var(--text);
+    border:1px solid #1e3357; outline:none;
+    transition:border .18s ease, box-shadow .18s ease, transform .03s ease;
+  }
+  input::placeholder{color:#7d91b0}
+  input:focus, select:focus{
+    border-color:#4aa3ff;
+    box-shadow: 0 0 0 3px rgba(74,163,255,.15), 0 10px 25px rgba(10,20,40,.35);
+  }
+  .row{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap}
+  .col{flex:1 1 220px; min-width:220px}
+
+  /* Table */
+  table{width:100%; border-collapse:collapse; background:#0b162c; border-radius:14px; overflow:hidden}
+  th,td{padding:12px 10px; border-bottom:1px solid #173057; font-size:13px}
+  th{
+    text-transform:uppercase; font-size:11px; letter-spacing:.18em; color:#b5c8e6;
+    background:linear-gradient(180deg,#0e1a35,#0b172f);
+    position:sticky; top:0; z-index:1;
+  }
+  tr:nth-child(even) td{background:#0a1428}
+  tr:hover td{ background: #0f1f3f }
+  .small{font-size:12px; color:var(--muted)}
+
+  /* Buttons */
+  .btn{
+    position:relative; display:inline-flex; align-items:center; gap:8px;
+    padding:10px 14px; border-radius:14px; font-weight:800; letter-spacing:.3px;
+    border:1px solid #273e6a; cursor:pointer; user-select:none;
+    background: linear-gradient(180deg,#0f1c38,#0b172f);
+    color:#dbe7ff; box-shadow: 0 6px 18px rgba(10,20,40,.3);
+    transition: transform .08s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+  .btn:hover{ transform: translateY(-1px); box-shadow: 0 10px 26px rgba(10,20,40,.45); border-color:#3b5aa0; }
+  .btn:active{ transform: translateY(0) scale(.99); }
+  .btn .dot{width:8px;height:8px;border-radius:50%;background:#7aa7ff;box-shadow:0 0 0 6px #7aa7ff22}
+  .btn.primary{
+    background: linear-gradient(90deg, #3aa9ff, #9a7bff);
+    color:#071225; border:none;
+    box-shadow: 0 12px 34px rgba(91,155,255,.35);
+  }
+  .btn.primary:hover{ box-shadow: 0 16px 38px rgba(91,155,255,.5); }
+  .btn.ghost{
+    background: linear-gradient(180deg,#0a152a,#091222);
+    color:#bcd3ff; border:1px solid #253c67;
+  }
+  .btn.warn{
+    background: linear-gradient(90deg,#ffb86b,#ff7f7f); color:#10141f; border:none;
+    box-shadow: 0 12px 32px rgba(255,118,118,.3);
+  }
+
+  /* KPI */
+  .kpi{background:#0a172e;border:1px solid #1e3357;border-radius:16px;padding:12px;min-width:210px;box-shadow:var(--shadow-2)}
+  .kpi .t{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9fb4d6}
+  .kpi .v{font-size:26px;font-weight:900;margin-top:6px;color:#e8f3ff}
+
+  /* Banner */
+  .banner{
+    border:1px dashed #27518f; border-radius:16px; padding:12px 14px;
+    background: linear-gradient(180deg,#0c1730a6,#0c173066);
+    color:#c6dbff; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px
+  }
+
+  details summary{cursor:pointer}
+
+  /* Chips for saved presets */
+  .chip{
+    display:inline-flex; align-items:center; gap:8px;
+    background:#0d1a32; border:1px solid #234070; color:#cfe2ff;
+    border-radius:999px; padding:8px 12px; margin:6px 6px 0 0;
+  }
+  .chip .x{cursor:pointer; border:1px solid #335c9e; padding:2px 6px; border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true"></div>
+  <div class="title">
+    <h1>Shakthi Innovative Crafts</h1>
+    <div class="tag">Inventory · Fan Sizes · Bottom Sizes · Slit Planner · Sheet Calculator</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="banner">
+    <div><b>Pro tip:</b> Click <span class="chip"><span class="dot"></span> Demo</span> to seed sample data, then explore Slit Planner and Calculator.</div>
+    <button id="demoBtn" class="btn ghost"><span class="dot"></span> Add Demo Data</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="inventory">Inventory</button>
+    <button class="tab" data-view="fans">Fan Sizes</button>
+    <button class="tab" data-view="bottoms">Bottom Sizes</button>
+    <button class="tab" data-view="slit">Slit Planner</button>
+    <button class="tab" data-view="sheetcalc">Sheet Calculator</button>
+  </div>
+
+  <!-- Inventory -->
+  <section id="inventory" class="view">
+    <h3 style="margin:4px 0 12px">Reel Inventory</h3>
+    <div class="row">
+      <div class="col"><label>Width (cm)<input id="invWidth" type="number" step="0.01" placeholder="e.g. 100"/></label></div>
+      <div class="col"><label>GSM<input id="invGsm" type="number" step="0.1" placeholder="e.g. 170"/></label></div>
+      <div class="col"><label>Weight (kg)<input id="invWeight" type="number" step="0.01" placeholder="e.g. 300"/></label></div>
+      <div class="col"><label>Paper Type<select id="invType"></select></label></div>
+      <div class="col"><label>Date<input id="invDate" type="date"/></label></div>
+      <div class="col" style="display:flex;gap:10px;align-items:flex-end">
+        <button id="addInv" class="btn primary">Add Reel</button>
+        <button id="exportInv" class="btn ghost">Export CSV</button>
+        <!-- Clear All removed -->
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="col"><label>Search<input id="invSearch" placeholder="type/notes/id"/></label></div>
+    </div>
+    <div style="overflow:auto;max-height:340px;margin-top:10px">
+      <table id="invTable"><thead><tr><th>ID</th><th>Width</th><th>GSM</th><th>Weight</th><th>Type</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- Fans -->
+  <section id="fans" class="view" style="display:none">
+    <h3 style="margin:4px 0 12px">Fan Sizes</h3>
+    <div class="row">
+      <div class="col"><label>Name<input id="fanName" placeholder="e.g. 350ml H60"/></label></div>
+      <div class="col"><label>Die W (cm)<input id="dieW" type="number" step="0.01"/></label></div>
+      <div class="col"><label>Die H (cm)<input id="dieH" type="number" step="0.01"/></label></div>
+      <div class="col"><label>Print W (cm)<input id="printW" type="number" step="0.01"/></label></div>
+      <div class="col"><label>Print H (cm)<input id="printH" type="number" step="0.01"/></label></div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <div class="col"><label>Rows<input id="rows" type="number" step="1"/></label></div>
+      <div class="col"><label>1UPS width (cm)<input id="ups1" type="number" step="0.01"/></label></div>
+      <div class="col"><label>2UPS width (cm)<input id="ups2" type="number" step="0.01"/></label></div>
+      <div class="col"><label>3UPS width (cm)<input id="ups3" type="number" step="0.01"/></label></div>
+      <div class="col"><label>4UPS width (cm)<input id="ups4" type="number" step="0.01"/></label></div>
+      <div class="col" style="display:flex;gap:10px;align-items:flex-end">
+        <button id="addFan" class="btn primary">Add Fan</button>
+        <button id="exportFans" class="btn ghost">Export CSV</button>
+        <!-- Clear All removed -->
+      </div>
+    </div>
+    <div style="overflow:auto;max-height:340px;margin-top:10px">
+      <table id="fanTable"><thead><tr><th>ID</th><th>Name</th><th>Die W×H</th><th>Print W×H</th><th>Rows</th><th>1U</th><th>2U</th><th>3U</th><th>4U</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- Bottoms -->
+  <section id="bottoms" class="view" style="display:none">
+    <h3 style="margin:4px 0 12px">Bottom Sizes</h3>
+    <div class="row">
+      <div class="col"><label>Name<input id="bottomName" placeholder="e.g. 90mm"/></label></div>
+      <div class="col"><label>Width (cm)<input id="bottomWidth" type="number" step="0.01"/></label></div>
+      <div class="col" style="display:flex;gap:10px;align-items:flex-end">
+        <button id="addBottom" class="btn primary">Add Bottom</button>
+        <button id="exportBottoms" class="btn ghost">Export CSV</button>
+        <!-- Clear All removed -->
+      </div>
+    </div>
+    <div style="overflow:auto;max-height:340px;margin-top:10px">
+      <table id="bottomTable"><thead><tr><th>ID</th><th>Name</th><th>Width (cm)</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- Slit Planner -->
+  <section id="slit" class="view" style="display:none">
+    <h3 style="margin:4px 0 12px">Slit Planner</h3>
+    <div class="row">
+      <div class="col"><label>Parent Reel<select id="parentSelect"><option value="">-- choose --</option></select></label></div>
+      <div class="col"><label>Fan Name<select id="fanSelect"><option value="">-- choose --</option></select></label></div>
+      <div class="col"><label>UPS Columns<select id="upsSelect"><option value="1">1UPS</option><option value="2">2UPS</option><option value="3">3UPS</option><option value="4">4UPS</option></select></label></div>
+      <div class="col"><label>Variant<select id="variantSelect"><option value="side">Sidewall only</option><option value="bottom">Bottom only</option><option value="both">Side + Bottom</option></select></label></div>
+      <div class="col" style="display:flex;gap:10px;align-items:flex-end">
+        <button id="genBtn" class="btn primary">Generate</button>
+        <button id="clearResults" class="btn ghost">Clear Results</button>
+      </div>
+    </div>
+    <div style="overflow:auto;max-height:360px;margin-top:10px">
+      <table id="resultsTable"><thead><tr><th>#</th><th>Combination</th><th>Used (cm)</th><th>Waste (cm)</th><th>Efficiency %</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- Sheet Calculator -->
+  <section id="sheetcalc" class="view" style="display:none">
+    <h3 style="margin:4px 0 12px">Sheet Count Calculator</h3>
+    <div class="row">
+      <div class="col"><label>Length<input id="length" type="number" step="0.01" placeholder="e.g. 700"/></label></div>
+      <div class="col"><label>Length unit<select id="lengthUnit"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option></select></label></div>
+      <div class="col"><label>Width<input id="width" type="number" step="0.01" placeholder="e.g. 500"/></label></div>
+      <div class="col"><label>Width unit<select id="widthUnit"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option></select></label></div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <div class="col">
+        <label>Reel (from inventory)
+          <select id="reelPick">
+            <option value="">-- optional --</option>
+          </select>
+        </label>
+      </div>
+      <div class="col">
+        <div id="reelInfo" class="small" style="margin-top:28px;opacity:.9">No reel selected</div>
+      </div>
+    </div>
+    <div class="small" id="sheetAreaHint" style="margin-top:6px">Sheet area: –</div>
+    <div class="row" style="margin-top:6px">
+      <div class="col"><label>Reel weight (kg)<input id="reelWeight" type="number" step="0.01"/></label></div>
+      <div class="col"><label>Core weight (kg)<input id="coreWeight" type="number" step="0.01" value="5"/></label></div>
+      <div class="col"><label>GSM<input id="gsm" type="number" step="0.1"/></label></div>
+      <div class="col"><label>Wastage (%)<input id="wastage" type="number" step="0.1" value="2"/></label></div>
+      <div class="col"><label>Rounding<select id="roundMode"><option value="floor">Down (safe)</option><option value="nearest">Nearest</option><option value="ceil">Up</option></select></label></div>
+      <div class="col" style="display:flex;gap:10px;align-items:flex-end">
+        <button id="calcBtn" class="btn primary">Calculate</button>
+        <button id="saveBtn" class="btn ghost">Save Preset</button>
+        <button id="resetBtn" class="btn warn">Reset</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="kpi"><div class="t">Total sheets</div><div id="sheets" class="v">–</div><div id="roundNote" class="small">&nbsp;</div></div>
+      <div class="kpi"><div class="t">Net paper area</div><div id="area" class="v">–</div><div class="small">after core & wastage</div></div>
+      <div class="kpi"><div class="t">Weight / sheet</div><div id="wPerSheet" class="v">–</div><div class="small">approximate</div></div>
+    </div>
+    <details style="margin-top:8px"><summary>Show calculation details</summary><div id="calcDetails" class="small" style="margin-top:6px"></div></details>
+    <div class="view" style="margin-top:10px">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h4 style="margin:0">Saved presets</h4>
+        <!-- Clear all button removed -->
+      </div>
+      <div id="savedList" class="row" style="margin-top:8px; flex-wrap:wrap"></div>
+    </div>
+  </section>
+
+  <div class="small" style="opacity:.85; margin-top:10px">Storage: localStorage. Export CSV before clearing browser storage if needed.</div>
+</div>
+
+<script>
+/* ===== Utilities ===== */
+const KEYS = { reels:'reelStock_v2', fans:'fanSizes_v1', bottoms:'bottomSizes_v1' };
+function read(k, fallback=[]){ try{ const r=JSON.parse(localStorage.getItem(k)||'null'); return Array.isArray(r)? r: (r? [r]: fallback);}catch(e){ return fallback; } }
+function write(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function byId(id){ return document.getElementById(id); }
+function csvExport(name, rows){
+  if(!rows?.length){ alert('No data to export'); return; }
+  const headers = Array.from(rows.reduce((s,o)=>{ Object.keys(o).forEach(k=>s.add(k)); return s; }, new Set()));
+  const lines = [headers.join(',')].concat(rows.map(r=>headers.map(h=>JSON.stringify(r[h]??'')).join(',')));
+  const blob = new Blob([lines.join('\n')],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=(name||'data')+'.csv'; a.click(); URL.revokeObjectURL(url);
+}
+function newId(prefix, arr){ let n=arr.length+1, id; do{ id=prefix+String(n).padStart(3,'0'); n++; }while(arr.some(x=>x.id===id)); return id; }
+function toast(msg){
+  const t=document.createElement('div');
+  t.textContent=msg||'Saved'; t.style.cssText='position:fixed;right:16px;bottom:16px;background:#071426;color:#cfe2ff;padding:10px 14px;border:1px solid #224071;border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.35);z-index:9999';
+  document.body.appendChild(t); setTimeout(()=>t.remove(),1400);
+}
+
+/* ===== State ===== */
+let reels = read(KEYS.reels), fans = read(KEYS.fans), bottoms = read(KEYS.bottoms);
+
+/* ===== Tabs ===== */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=> v.style.display='none');
+    byId(btn.dataset.view).style.display='block';
+  });
+});
+
+/* ===== Inventory ===== */
+const PAPER_TYPES=['PLA Coated','Bio BPS','Filobev','Indobev','Indobowl','TNPL','Others'];
+(function initInv(){
+  const typeSel=byId('invType'); typeSel.innerHTML=''; PAPER_TYPES.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; typeSel.appendChild(o); });
+  byId('invDate').value = new Date().toISOString().slice(0,10);
+  renderInv(); seedSelectors(); seedReelPick();
+  byId('addInv').addEventListener('click', ()=>{
+    const width=+byId('invWidth').value, gsm=+byId('invGsm').value, weight=+byId('invWeight').value;
+    if(!(width>0 && gsm>0 && weight>0)){ alert('Enter width, GSM and weight'); return; }
+    const item={ id:newId('R',reels), width:+width, gsm:+gsm, weight:+weight, type:byId('invType').value||'Others', date: byId('invDate').value||new Date().toISOString().slice(0,10), notes:'' };
+    reels.push(item); write(KEYS.reels,reels); renderInv(); seedSelectors(); seedReelPick(); ['invWidth','invGsm','invWeight'].forEach(i=> byId(i).value=''); toast('Reel added');
+  });
+  byId('exportInv').addEventListener('click', ()=> csvExport('reels', reels));
+  // clearInv removed
+  byId('invTable').addEventListener('click', e=>{
+    const id=e.target?.dataset?.id; if(!id) return;
+    if(e.target.classList.contains('del')){ if(!confirm('Delete '+id+'?')) return; reels=reels.filter(r=>r.id!==id); write(KEYS.reels,reels); renderInv(); seedSelectors(); seedReelPick(); }
+    if(e.target.classList.contains('edit')){
+      const r=reels.find(x=>x.id===id); if(!r) return;
+      byId('invWidth').value=r.width; byId('invGsm').value=r.gsm; byId('invWeight').value=r.weight; byId('invType').value=r.type||'Others'; byId('invDate').value=r.date||new Date().toISOString().slice(0,10);
+      reels = reels.filter(x=>x.id!==id); write(KEYS.reels,reels); renderInv(); seedSelectors(); seedReelPick(); toast('Loaded into form. Save to update.');
+    }
+  });
+  byId('invSearch').addEventListener('input', renderInv);
+})();
+function renderInv(){
+  const q=(byId('invSearch').value||'').toLowerCase();
+  const tbody=byId('invTable').querySelector('tbody'); tbody.innerHTML='';
+  reels.forEach(r=>{
+    const hay=(r.id+' '+(r.type||'')+' '+(r.notes||'')).toLowerCase();
+    if(q && !hay.includes(q)) return;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.id}</td><td>${r.width}</td><td>${r.gsm}</td><td>${r.weight}</td><td>${r.type||''}</td><td class="small">${r.date||''}</td><td>${r.notes||''}</td>
+      <td><button class="btn ghost edit" data-id="${r.id}">Edit</button> <button class="btn warn del" data-id="${r.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  seedReelPick();
+}
+
+/* ===== Fans ===== */
+(function initFans(){
+  renderFans(); seedSelectors(); seedReelPick();
+  byId('addFan').addEventListener('click', ()=>{
+    const name=(byId('fanName').value||'').trim(); if(!name){ alert('Name required'); return; }
+    const fan={
+      id:newId('F',fans), name,
+      dieW:+byId('dieW').value||0, dieH:+byId('dieH').value||0,
+      printW:+byId('printW').value||0, printH:+byId('printH').value||0,
+      rows:+byId('rows').value||0,
+      ups1:+byId('ups1').value||0, ups2:+byId('ups2').value||0, ups3:+byId('ups3').value||0, ups4:+byId('ups4').value||0
+    };
+    fans.push(fan); write(KEYS.fans,fans); renderFans(); seedSelectors(); seedReelPick(); ['fanName','dieW','dieH','printW','printH','rows','ups1','ups2','ups3','ups4'].forEach(i=> byId(i).value='');
+    toast('Fan added');
+  });
+  byId('exportFans').addEventListener('click', ()=> csvExport('fans', fans));
+  // clearFans removed
+  byId('fanTable').addEventListener('click', e=>{
+    const id=e.target?.dataset?.id; if(!id) return;
+    if(e.target.classList.contains('fdel')){ if(!confirm('Delete '+id+'?')) return; fans=fans.filter(f=>f.id!==id); write(KEYS.fans,fans); renderFans(); seedSelectors(); seedReelPick(); }
+    if(e.target.classList.contains('fedit')){
+      const f=fans.find(x=>x.id===id); if(!f) return;
+      byId('fanName').value=f.name; byId('dieW').value=f.dieW; byId('dieH').value=f.dieH; byId('printW').value=f.printW; byId('printH').value=f.printH;
+      byId('rows').value=f.rows; byId('ups1').value=f.ups1; byId('ups2').value=f.ups2; byId('ups3').value=f.ups3; byId('ups4').value=f.ups4;
+      fans = fans.filter(x=>x.id!==id); write(KEYS.fans,fans); renderFans(); seedSelectors(); seedReelPick(); toast('Loaded into form. Save to update.');
+    }
+  });
+})();
+function renderFans(){
+  const tbody=byId('fanTable').querySelector('tbody'); tbody.innerHTML='';
+  fans.forEach(f=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${f.id}</td><td>${f.name}</td><td>${f.dieW}×${f.dieH}</td><td>${f.printW}×${f.printH}</td><td>${f.rows}</td><td>${f.ups1}</td><td>${f.ups2}</td><td>${f.ups3}</td><td>${f.ups4}</td>
+      <td><button class="btn ghost fedit" data-id="${f.id}">Edit</button> <button class="btn warn fdel" data-id="${f.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ===== Bottoms ===== */
+(function initBottoms(){
+  renderBottoms(); seedSelectors(); seedReelPick();
+  byId('addBottom').addEventListener('click', ()=>{
+    const name=(byId('bottomName').value||'').trim(); const width=+byId('bottomWidth').value||0;
+    if(!name || !(width>0)){ alert('Name and width required'); return; }
+    bottoms.push({ id:newId('B',bottoms), name, width:+width });
+    write(KEYS.bottoms,bottoms); renderBottoms(); seedSelectors(); seedReelPick(); ['bottomName','bottomWidth'].forEach(i=> byId(i).value=''); toast('Bottom added');
+  });
+  byId('exportBottoms').addEventListener('click', ()=> csvExport('bottoms', bottoms));
+  // clearBottoms removed
+  byId('bottomTable').addEventListener('click', e=>{
+    const id=e.target?.dataset?.id; if(!id) return;
+    if(e.target.classList.contains('bdel')){ if(!confirm('Delete '+id+'?')) return; bottoms=bottoms.filter(b=>b.id!==id); write(KEYS.bottoms,bottoms); renderBottoms(); seedSelectors(); seedReelPick(); }
+  });
+})();
+function renderBottoms(){
+  const tbody=byId('bottomTable').querySelector('tbody'); tbody.innerHTML='';
+  bottoms.forEach(b=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${b.id}</td><td>${b.name}</td><td>${b.width}</td>
+      <td><button class="btn warn bdel" data-id="${b.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ===== Populate selectors ===== */
+function seedSelectors(){
+  const par=byId('parentSelect'); par.innerHTML='<option value="">-- choose --</option>';
+  reels.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=`${r.id} — ${r.width}cm · ${r.gsm} GSM`; par.appendChild(o); });
+  const fan=byId('fanSelect'); fan.innerHTML='<option value="">-- choose --</option>';
+  fans.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=`${f.id} — ${f.name}`; fan.appendChild(o); });
+}
+
+/* ===== Reel picker for Sheet Calculator ===== */
+function seedReelPick(){
+  const sel = byId('reelPick');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- optional --</option>';
+  reels.forEach(r=>{
+    const o = document.createElement('option');
+    o.value = r.id;
+    o.textContent = `${r.id} — ${r.width}cm · ${r.gsm} GSM · ${r.weight}kg`;
+    sel.appendChild(o);
+  });
+  // Try to keep previous selection
+  if(cur && Array.from(sel.options).some(op=>op.value===cur)){
+    sel.value = cur;
+  }
+}
+
+/* ===== Slit Planner ===== */
+function upsWidth(f, ups){ return f ? (+f['ups'+ups]||0) : 0; }
+function generateCombos(reelWidth, f, ups){
+  const out=[];
+  const sideW=upsWidth(f,ups);
+  const bottomsOk=bottoms.filter(b=> b.width<=reelWidth).map(b=> ({...b}));
+  const sideCandidates=(sideW>0 && sideW<=reelWidth)? [{ id:f.id, name:f.name, width:sideW }]:[];
+  const maxSide=3, maxBottom=4;
+  function add(sideArr, botArr){
+    const used=[...sideArr,...botArr].reduce((s,p)=> s+(p.width||0),0);
+    if(used<=reelWidth && (sideArr.length||botArr.length)){
+      const waste=+(reelWidth-used).toFixed(3);
+      const eff=+((used/reelWidth)*100).toFixed(3);
+      const parts=[...sideArr.map(p=>`${p.name}(${p.width}cm)`), ...botArr.map(p=>`${p.name}(${p.width}cm)`)];
+      out.push({ combo:parts.join(' + '), used:+used.toFixed(3), waste, efficiency:eff, sideArr:[...sideArr], botArr:[...botArr] });
+    }
+  }
+  sideCandidates.forEach(s=>{ for(let i=1;i<=maxSide;i++) add(Array(i).fill(s),[]); });
+  bottomsOk.forEach(b=>{ for(let i=1;i<=maxBottom;i++) add([], Array(i).fill(b)); });
+  sideCandidates.forEach(s=>{
+    for(let si=1;si<=maxSide;si++){
+      const sa=Array(si).fill(s);
+      bottomsOk.forEach(b=>{ for(let bi=1;bi<=maxBottom;bi++) add(sa, Array(bi).fill(b)); });
+    }
+  });
+  const uniq=new Map(); out.forEach(r=>{ const k=r.combo+'|'+r.used; if(!uniq.has(k)) uniq.set(k,r); });
+  return Array.from(uniq.values()).sort((a,b)=> b.efficiency-a.efficiency || a.waste-b.waste);
+}
+byId('genBtn').addEventListener('click', ()=>{
+  const pid=byId('parentSelect').value, fid=byId('fanSelect').value;
+  if(!pid) return alert('Select a parent reel');
+  if(!fid) return alert('Select a fan size');
+  const parent=reels.find(r=>r.id===pid), fan=fans.find(f=>f.id===fid), ups=+byId('upsSelect').value||1, variant=byId('variantSelect').value;
+  const combos=generateCombos(+parent.width, fan, ups);
+  const tbody=byId('resultsTable').querySelector('tbody'); tbody.innerHTML='';
+  if(!combos.length){ tbody.innerHTML='<tr><td colspan="6" class="small">No combinations possible.</td></tr>'; return; }
+  let filtered=combos;
+  if(variant==='side') filtered=combos.filter(c=> c.sideArr.length>0 && c.botArr.length===0);
+  if(variant==='bottom') filtered=combos.filter(c=> c.sideArr.length===0 && c.botArr.length>0);
+  if(variant==='both') filtered=combos.filter(c=> c.sideArr.length>0 && c.botArr.length>0);
+  filtered.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td>${r.combo}</td><td>${r.used}</td><td>${r.waste}</td><td>${r.efficiency}</td>
+      <td><button class="btn primary make" data-i="${i}">Create</button></td>`;
+    tbody.appendChild(tr);
+  });
+  window._combos=filtered;
+});
+byId('resultsTable').addEventListener('click', e=>{
+  if(!e.target.classList.contains('make')) return;
+  const idx=+e.target.dataset.i, c=window._combos?.[idx]; if(!c) return;
+  const pid=byId('parentSelect').value, parent=reels.find(r=>r.id===pid); if(!parent) return alert('Parent not found');
+  const pWidth=+parent.width, pWeight=+parent.weight;
+  reels=reels.filter(r=>r.id!==parent.id);
+  function pushChild(w,note){
+    const childWeight=pWeight? +(pWeight*(w/pWidth)).toFixed(3) : 0;
+    reels.push({ id:newId('R',reels), width:+w, gsm:parent.gsm, weight:childWeight, type:parent.type, date:new Date().toISOString().slice(0,10), notes:note });
+  }
+  c.sideArr.forEach(s=> pushChild(s.width, 'Slit child '+s.name));
+  c.botArr.forEach(b=> pushChild(b.width, 'Slit bottom '+b.name));
+  write(KEYS.reels,reels); renderInv(); seedSelectors(); seedReelPick(); toast('Child reels created');
+});
+
+/* ===== Sheet Calculator ===== */
+(function sheetCalc(){
+  const E={ L:byId('length'), LU:byId('lengthUnit'), W:byId('width'), WU:byId('widthUnit'),
+    RK:byId('reelWeight'), CK:byId('coreWeight'), GSM:byId('gsm'), WS:byId('wastage'), RM:byId('roundMode'),
+    Hint:byId('sheetAreaHint'), sheets:byId('sheets'), area:byId('area'), wps:byId('wPerSheet'),
+    note:byId('roundNote'), det:byId('calcDetails'), save:byId('saveBtn'), calc:byId('calcBtn'), reset:byId('resetBtn'),
+    list:byId('savedList') };
+  function toM(x,u){ const n=Number(x); if(!isFinite(n)||n<=0) return NaN; return u==='mm'? n/1000 : u==='cm'? n/100 : u==='m'? n : NaN; }
+  function fmt(x,d=0){ return (!isFinite(x))?'–': new Intl.NumberFormat(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}).format(x); }
+  function updateArea(){ const a=toM(E.L.value,E.LU.value)*toM(E.W.value,E.WU.value); E.Hint.textContent=isFinite(a)? `Sheet area: ${fmt(a,4)} m²`:'Sheet area: –'; }
+  [E.L,E.W,E.LU,E.WU].forEach(el=> el.addEventListener('input', updateArea));
+
+  // Reel picker behavior
+  const reelPick = byId('reelPick'), reelInfo = byId('reelInfo');
+  function onPickReel(){
+    const id = reelPick?.value || '';
+    if(!id){
+      if(reelInfo) reelInfo.textContent = 'No reel selected';
+      return;
+    }
+    const r = reels.find(x=>x.id===id);
+    if(!r){
+      if(reelInfo) reelInfo.textContent = 'No reel selected';
+      return;
+    }
+    // Fill GSM & Reel Weight
+    E.RK.value = r.weight ?? '';
+    E.GSM.value = r.gsm ?? '';
+    // Preserve user's core weight if set; otherwise default 5
+    if(!(Number(E.CK.value)>0)) E.CK.value = 5;
+
+    // Show info
+    if(reelInfo){
+      const meta = [
+        r.type ? `Type: ${r.type}` : '',
+        r.date ? `Date: ${r.date}` : '',
+        r.width ? `Width: ${r.width}cm` : '',
+        r.gsm ? `GSM: ${r.gsm}` : ''
+      ].filter(Boolean).join(' · ');
+      reelInfo.textContent = meta || 'Reel selected';
+    }
+  }
+  reelPick?.addEventListener('change', onPickReel);
+
+  function calc(){
+    const Lm=toM(E.L.value,E.LU.value), Wm=toM(E.W.value,E.WU.value), RK=+E.RK.value, CK=+E.CK.value||0, GSM=+E.GSM.value, WS=+E.WS.value||0, rm=E.RM.value;
+    const errs=[]; if(!isFinite(Lm)) errs.push('Enter a valid length'); if(!isFinite(Wm)) errs.push('Enter a valid width');
+    if(!(RK>0)) errs.push('Enter a valid reel weight'); if(!(GSM>0)) errs.push('Enter a valid GSM');
+    if(CK<0) errs.push('Core weight cannot be negative'); if(CK>=RK) errs.push('Core must be < reel'); if(WS<0||WS>=100) errs.push('Wastage must be 0–99.9');
+    if(errs.length){ alert(errs.join('\n')); return; }
+    const net=RK-CK, totalArea=(net*1000)/GSM, effArea=totalArea*(1-WS/100), sheetArea=Lm*Wm, exact=effArea/sheetArea;
+    const rounded= rm==='ceil'? Math.ceil(exact): rm==='nearest'? Math.round(exact): Math.floor(exact);
+    const gps=GSM*sheetArea;
+    E.sheets.textContent=fmt(rounded); E.note.textContent= rm==='ceil'?'Rounded up': rm==='nearest'?'Nearest':'Rounded down (safe)';
+    E.area.textContent=`${fmt(effArea,2)} m²`; E.wps.textContent=`${fmt(gps,2)} g`;
+    E.det.innerHTML=[`Net reel weight = ${fmt(net,2)} kg`,`Total area = ${fmt(totalArea,2)} m²`,`Effective area (after ${WS}% wastage) = ${fmt(effArea,2)} m²`,`Sheet area = ${fmt(sheetArea,4)} m²`,`Exact sheets = ${fmt(exact,2)}`].map(s=>`<div>• ${s}</div>`).join('');
+    return true;
+  }
+  function savePreset(){
+    if(!calc()) return;
+    const p={ name:`${E.L.value}${E.LU.value} × ${E.W.value}${E.WU.value} | ${E.GSM.value} GSM | ${E.RK.value}kg`,
+      data:{ L:E.L.value, LU:E.LU.value, W:E.W.value, WU:E.WU.value, RK:E.RK.value, CK:E.CK.value, GSM:E.GSM.value, WS:E.WS.value, RM:E.RM.value } };
+    const list=JSON.parse(localStorage.getItem('sheetCalcPresets')||'[]'); list.unshift(p);
+    localStorage.setItem('sheetCalcPresets', JSON.stringify(list.slice(0,40))); renderPresets();
+  }
+  function renderPresets(){
+    const list=JSON.parse(localStorage.getItem('sheetCalcPresets')||'[]'); E.list.innerHTML='';
+    if(!list.length){ E.list.innerHTML='<div class="small">No presets saved.</div>'; return; }
+    list.forEach((p,i)=>{
+      const wrap=document.createElement('div'); wrap.className='chip'; wrap.innerHTML=`<span style="font-weight:800">${p.name}</span> <span class="x" data-i="${i}">✕</span>`;
+      wrap.addEventListener('click', (e)=>{
+        if(e.target.classList.contains('x')) return;
+        const d=p.data; E.L.value=d.L; E.LU.value=d.LU; E.W.value=d.W; E.WU.value=d.WU; E.RK.value=d.RK; E.CK.value=d.CK; E.GSM.value=d.GSM; E.WS.value=d.WS; E.RM.value=d.RM;
+        updateArea(); calc();
+      });
+      wrap.querySelector('.x').addEventListener('click', ()=>{ const list2=JSON.parse(localStorage.getItem('sheetCalcPresets')||'[]'); list2.splice(i,1); localStorage.setItem('sheetCalcPresets', JSON.stringify(list2)); renderPresets(); });
+      E.list.appendChild(wrap);
+    });
+  }
+  function resetAll(){ [E.L,E.W,E.RK,E.CK,E.GSM,E.WS].forEach(el=> el.value=''); E.LU.value='mm'; E.WU.value='mm'; E.RM.value='floor'; updateArea(); E.sheets.textContent=E.area.textContent=E.wps.textContent='–'; E.note.textContent=''; E.det.innerHTML=''; }
+  E.calc.addEventListener('click', calc);
+  E.save.addEventListener('click', savePreset);
+  E.reset.addEventListener('click', resetAll);
+  // Clear all presets button removed
+  updateArea(); renderPresets();
+  seedReelPick(); // populate reel choices on first load
+})();
+
+/* ===== Demo Data ===== */
+document.getElementById('demoBtn').addEventListener('click', ()=>{
+  if(!confirm('Add demo reels, fans and bottoms?')) return;
+  if(reels.length<2){
+    reels.push({id:newId('R',reels), width:100, gsm:170, weight:300, type:'TNPL', date:new Date().toISOString().slice(0,10), notes:''});
+    reels.push({id:newId('R',reels), width:74, gsm:180, weight:260, type:'Filobev', date:new Date().toISOString().slice(0,10), notes:''});
+  }
+  if(fans.length<1){
+    fans.push({id:newId('F',fans), name:'350ml H60', dieW:0, dieH:0, printW:0, printH:0, rows:3, ups1:18.5, ups2:37, ups3:55.5, ups4:74});
+  }
+  if(bottoms.length<2){
+    bottoms.push({id:newId('B',bottoms), name:'90mm', width:9.0});
+    bottoms.push({id:newId('B',bottoms), name:'85mm', width:8.5});
+  }
+  write(KEYS.reels,reels); write(KEYS.fans,fans); write(KEYS.bottoms,bottoms);
+  renderInv(); renderFans(); renderBottoms(); seedSelectors(); seedReelPick(); toast('Demo data added');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Paper Reel Inventory (Offline)</title>
+  <style>
+    :root{--bg:#f6f8fa;--card:#ffffff;--accent:#1f7a5f;--muted:#6b7280}
+    *{box-sizing:border-box;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}
+    body{margin:0;background:var(--bg);color:#0f172a}
+    .app{max-width:1200px;margin:20px auto;padding:18px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    h1{font-size:18px;margin:0}
+    .tabs{display:flex;gap:8px;margin-bottom:12px}
+    .tabs button{padding:8px 12px;border-radius:8px;border:none;background:#eef2f1;cursor:pointer}
+    .tabs button.active{background:var(--accent);color:#fff}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 1px 6px rgba(15,23,42,0.06);margin-bottom:12px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type=number], input[type=text], select { width:100%; padding:8px; border:1px solid #e6e9ee; border-radius:8px }
+    .row{display:flex;gap:10px;align-items:center}
+    .row > *{flex:1}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:8px;border-bottom:1px solid #eef0f3;text-align:left;font-size:13px}
+    th{background:#fbfcfd}
+    .small{font-size:12px;color:var(--muted)}
+    .muted{color:var(--muted)}
+    button.primary{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    button.secondary{background:#eef2f1;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+    .actions button{margin-right:6px}
+    .toast{position:fixed;right:18px;bottom:18px;background:#111827;color:#fff;padding:10px 14px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Paper Reel Inventory</h1>
+        <div class="small muted">Inventory · Fan Sizes · Bottom Sizes (offline)</div>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button data-tab="inventory" class="active">Inventory</button>
+      <button data-tab="fans">Fan Sizes</button>
+      <button data-tab="bottoms">Bottom Sizes</button>
+      <button data-tab="planner">Reel Planner</button>
+    
+      <button data-tab="sheetcalc">Sheet Calculator</button></div>
+
+    <!-- Inventory Card -->
+    <div id="inventory" class="card view">
+      <h3>Inventory</h3>
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
+        <div>
+          <label>Width (cm)</label>
+          <input id="invWidth" type="number" step="0.1" />
+          <label style="margin-top:8px">GSM</label>
+          <input id="invGsm" type="number" step="0.1" />
+          <label style="margin-top:8px">Weight (kg)</label>
+          <input id="invWeight" type="number" step="0.01" />
+          <label style="margin-top:8px">Date</label>
+          <input id="invDate" type="date" />
+          <label style="margin-top:8px">Paper Type</label>
+          <select id="invType"></select>
+          <div style="margin-top:10px">
+            <button class="primary" id="addInvBtn">Add Reel</button>
+            <button class="secondary" id="exportInv">Export Excel</button>
+            <button class="secondary" id="clearInv">Clear All</button>
+          </div>
+        </div>
+        <div>
+          <label>Search</label>
+          <input id="invSearch" placeholder="Search by ID/type/notes..." />
+          <div style="overflow:auto;max-height:320px;margin-top:8px">
+            <table id="invTable"><thead><tr><th>ID</th><th>Width</th><th>GSM</th><th>Weight</th><th>Type</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Results -->
+      <div id="plannerActionCard" class="card" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Slitting Plan (by selected fan’s UPS widths)</h4>
+          <div>
+            <button class="secondary" id="plannerActionClose">Hide</button>
+            <button class="primary" id="plannerActionExport">Export Excel</button>
+          </div>
+        </div>
+        <div class="small muted" style="margin-top:6px">Shows leftover width after cutting ONE strip for the selected U (1U/2U/3U/4U) using the selected fan’s UPS widths.</div>
+        <div style="overflow:auto;max-height:360px;margin-top:8px">
+          <table id="plannerActionTable">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Reel ID</th>
+                <th>Reel Width (cm)</th>
+                <th>Selected U</th>
+                <th>U width (cm)</th>
+                <th>Leftover after 1 strip (cm)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fan Sizes -->
+    <div id="fans" class="card view" style="display:none">
+      <h3>Fan Sizes (Die & Printing)</h3>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <input id="fanName" placeholder="Name (e.g., 500ml H98)"/>
+        <input id="dieW" placeholder="Die W (cm)"/>
+        <input id="dieH" placeholder="Die H (cm)"/>
+        <input id="printW" placeholder="Print W (cm)"/>
+        <input id="printH" placeholder="Print H (cm)"/>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <input id="rows" placeholder="Rows per sheet"/>
+        <input id="ups1" placeholder="1UPS width (cm)"/>
+        <input id="ups2" placeholder="2UPS width (cm)"/>
+        <input id="ups3" placeholder="3UPS width (cm)"/>
+        <input id="ups4" placeholder="4UPS width (cm)"/>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="primary" id="addFan">Add Fan Size</button>
+        <button class="secondary" id="exportFans">Export Excel</button>
+        <button class="secondary" id="clearFans">Clear All</button>
+      </div>
+      <div style="margin-top:12px;overflow:auto;max-height:320px">
+        <table id="fanTable"><thead><tr><th>ID</th><th>Name</th><th>Die W×H</th><th>Print W×H</th><th>Rows</th><th>1U</th><th>2U</th><th>3U</th><th>4U</th><th>Actions</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <!-- Action Results -->
+      <div id="plannerActionCard" class="card" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Slitting Plan (by selected fan’s UPS widths)</h4>
+          <div>
+            <button class="secondary" id="plannerActionClose">Hide</button>
+            <button class="primary" id="plannerActionExport">Export Excel</button>
+          </div>
+        </div>
+        <div class="small muted" style="margin-top:6px">Shows leftover width after cutting ONE strip for the selected U (1U/2U/3U/4U) using the selected fan’s UPS widths.</div>
+        <div style="overflow:auto;max-height:360px;margin-top:8px">
+          <table id="plannerActionTable">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Reel ID</th>
+                <th>Reel Width (cm)</th>
+                <th>Selected U</th>
+                <th>U width (cm)</th>
+                <th>Leftover after 1 strip (cm)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Sizes -->
+    <div id="bottoms" class="card view" style="display:none">
+      <h3>Bottom Sizes</h3>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <input id="bottomName" placeholder="Name (e.g., 90mm)"/>
+        <input id="bottomWidth" placeholder="Width (cm)"/>
+        <button class="primary" id="addBottom">Add Bottom</button>
+        <button class="secondary" id="exportBottoms">Export Excel</button>
+        <button class="secondary" id="clearBottoms">Clear All</button>
+      </div>
+      <div style="overflow:auto;max-height:320px">
+        <table id="bottomTable"><thead><tr><th>ID</th><th>Name</th><th>Width (cm)</th><th>Actions</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <!-- Action Results -->
+      <div id="plannerActionCard" class="card" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Slitting Plan (by selected fan’s UPS widths)</h4>
+          <div>
+            <button class="secondary" id="plannerActionClose">Hide</button>
+            <button class="primary" id="plannerActionExport">Export Excel</button>
+          </div>
+        </div>
+        <div class="small muted" style="margin-top:6px">Shows leftover width after cutting ONE strip for the selected U (1U/2U/3U/4U) using the selected fan’s UPS widths.</div>
+        <div style="overflow:auto;max-height:360px;margin-top:8px">
+          <table id="plannerActionTable">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Reel ID</th>
+                <th>Reel Width (cm)</th>
+                <th>Selected U</th>
+                <th>U width (cm)</th>
+                <th>Leftover after 1 strip (cm)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- Reel Planner -->
+    <div id="planner" class="card view" style="display:none">
+      <h3>Reel Planner</h3>
+      <div class="small muted" style="margin-top:-4px">Filter reels by Fan, Paper Type(s), and GSM(s). Results update automatically.</div>
+      <div class="card" style="margin-top:10px">
+        <div class="row" style="align-items:flex-start">
+          <div>
+            <label>Fan Name</label>
+            <select id="plannerFan" style="min-width:240px"></select>
+          </div>
+          <div style="flex:2">
+            <label>Paper Types (multi)</label>
+            <div id="plannerTypes" class="small" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+            <div class="small muted" style="margin-top:6px">
+              <button class="secondary" id="plannerTypesAll">Select all</button>
+              <button class="secondary" id="plannerTypesNone">Clear</button>
+            </div>
+          </div>
+          <div style="flex:2">
+            <label>GSM (multi)</label>
+            <div id="plannerGsms" class="small" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+            <div class="small muted" style="margin-top:6px">
+              <button class="secondary" id="plannerGsmsAll">Select all</button>
+              <button class="secondary" id="plannerGsmsNone">Clear</button>
+            </div>
+          </div>
+          <div>
+            <label>Slit for</label>
+            <div id="uModeGroup" class="small" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <label style="display:inline-flex;gap:6px;align-items:center"><input type="radio" name="uMode" value="1" checked/> 1U</label>
+              <label style="display:inline-flex;gap:6px;align-items:center"><input type="radio" name="uMode" value="2"/> 2U</label>
+              <label style="display:inline-flex;gap:6px;align-items:center"><input type="radio" name="uMode" value="3"/> 3U</label>
+              <label style="display:inline-flex;gap:6px;align-items:center"><input type="radio" name="uMode" value="4"/> 4U</label>
+            </div>
+          </div>
+          <div style="align-self:flex-end">
+            <button class="secondary" id="plannerAction">Take Action</button>
+            <button class="primary" id="plannerExport">Export Excel</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:12px;align-items:center">
+        <div class="small muted">Matches: <span id="plannerCount">0</span> reels</div>
+        <div class="small muted">Total weight: <span id="plannerWeight">0</span> kg</div>
+        <div class="small muted">Selected Fan: <span id="plannerFanBadge">—</span></div>
+      </div>
+      <div style="overflow:auto;max-height:360px;margin-top:8px">
+        <table id="plannerTable">
+          <thead>
+            <tr><th></th><th>ID</th><th>Width</th><th>GSM</th><th>Weight</th><th>Type</th><th>Date</th><th>Notes</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Action Results -->
+      <div id="plannerActionCard" class="card" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Slitting Plan (by selected fan’s UPS widths)</h4>
+          <div>
+            <button class="secondary" id="plannerActionClose">Hide</button>
+            <button class="primary" id="plannerActionExport">Export Excel</button>
+          </div>
+        </div>
+        <div class="small muted" style="margin-top:6px">Shows leftover width after cutting ONE strip for the selected U (1U/2U/3U/4U) using the selected fan’s UPS widths.</div>
+        <div style="overflow:auto;max-height:360px;margin-top:8px">
+          <table id="plannerActionTable">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Reel ID</th>
+                <th>Reel Width (cm)</th>
+                <th>Selected U</th>
+                <th>U width (cm)</th>
+                <th>Leftover after 1 strip (cm)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="small muted" style="margin-top:6px">
+    <!-- Sheet Calculator -->
+    <div id="sheetcalc" class="card view" style="display:none">
+      <h3>Sheet Count Calculator</h3>
+      <div class="small muted" style="margin-top:-4px">Estimate total sheets you can cut from a reel given sheet size, GSM, core weight, and wastage.</div>
+      <div class="card" style="margin-top:10px">
+        <div class="row" style="align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label>Length</label>
+            <input id="sc_len" type="number" step="0.01" placeholder="e.g., 700"/>
+          </div>
+          <div>
+            <label>Length unit</label>
+            <select id="sc_len_unit">
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+            </select>
+          </div>
+          <div>
+            <label>Width</label>
+            <input id="sc_wid" type="number" step="0.01" placeholder="e.g., 500"/>
+          </div>
+          <div>
+            <label>Width unit</label>
+            <select id="sc_wid_unit">
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+          <div style="min-width:240px">
+            <label>Reel (optional, from inventory)</label>
+            <select id="sc_reel_pick">
+              <option value="">— optional —</option>
+            </select>
+          </div>
+          <div class="small muted" id="sc_reel_info" style="min-width:260px">No reel selected</div>
+        </div>
+        <div class="small muted" id="sc_sheet_area_hint" style="margin-top:6px">Sheet area: –</div>
+        <div class="row" style="align-items:flex-end;flex-wrap:wrap;margin-top:6px">
+          <div>
+            <label>Reel weight (kg)</label>
+            <input id="sc_reel_wt" type="number" step="0.01" placeholder="e.g., 300"/>
+          </div>
+          <div>
+            <label>Core weight (kg)</label>
+            <input id="sc_core_wt" type="number" step="0.01" value="5"/>
+          </div>
+          <div>
+            <label>GSM</label>
+            <input id="sc_gsm" type="number" step="0.1" placeholder="e.g., 170"/>
+          </div>
+          <div>
+            <label>Wastage (%)</label>
+            <input id="sc_wastage" type="number" step="0.1" value="2"/>
+          </div>
+          <div>
+            <label>Rounding</label>
+            <select id="sc_round">
+              <option value="floor">Down (safe)</option>
+              <option value="nearest">Nearest</option>
+              <option value="ceil">Up</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <button id="sc_calc" class="primary">Calculate</button>
+            <button id="sc_save" class="secondary">Save Preset</button>
+            <button id="sc_reset" class="secondary">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
+        <div class="kpi-like" style="background:#fff;border:1px solid #eef0f3;border-radius:12px;padding:12px;min-width:210px">
+          <div class="small muted" style="text-transform:uppercase;letter-spacing:.14em">Total sheets</div>
+          <div id="sc_sheets" style="font-size:24px;font-weight:800;margin-top:6px">–</div>
+          <div id="sc_round_note" class="small muted">&nbsp;</div>
+        </div>
+        <div class="kpi-like" style="background:#fff;border:1px solid #eef0f3;border-radius:12px;padding:12px;min-width:210px">
+          <div class="small muted" style="text-transform:uppercase;letter-spacing:.14em">Net paper area</div>
+          <div id="sc_area" style="font-size:24px;font-weight:800;margin-top:6px">–</div>
+          <div class="small muted">after core & wastage</div>
+        </div>
+        <div class="kpi-like" style="background:#fff;border:1px solid #eef0f3;border-radius:12px;padding:12px;min-width:210px">
+          <div class="small muted" style="text-transform:uppercase;letter-spacing:.14em">Weight / sheet</div>
+          <div id="sc_w_per_sheet" style="font-size:24px;font-weight:800;margin-top:6px">–</div>
+          <div class="small muted">approximate</div>
+        </div>
+      </div>
+
+      <details style="margin-top:8px">
+        <summary>Show calculation details</summary>
+        <div id="sc_calc_details" class="small muted" style="margin-top:6px"></div>
+      </details>
+
+      <div class="card" style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Saved presets</h4>
+          <div>
+            <button id="sc_clear_presets" class="secondary">Clear All</button>
+          </div>
+        </div>
+        <div id="sc_saved_list" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="small muted" style="margin-top:6px">Saved locally in your browser — export Excel before clearing if you want backups.</div></div>
+  </div>
+
+<script>
+// ------- Storage Helpers -------
+const KEYS = {
+  reelsKeys: ['reelStock_v2','reels','reelStock_v1'],
+  fansKeys: ['fanSizes_v1','fans'],
+  bottomsKeys: ['bottomSizes_v1','bottoms']
+};
+
+function readAny(keys){
+  for(const k of keys){
+    const raw = localStorage.getItem(k);
+    if(raw) { try{ return JSON.parse(raw); } catch(e){ continue; } }
+  }
+  return [];
+}
+const KEY_REELS = 'reelStock_v2';
+const KEY_FANS = 'fanSizes_v1';
+const KEY_BOTTOMS = 'bottomSizes_v1';
+
+let reels = readAny(KEYS.reelsKeys) || [];
+let fanSizes = readAny(KEYS.fansKeys) || [];
+let bottomSizes = readAny(KEYS.bottomsKeys) || [];
+
+function saveReels(){ localStorage.setItem(KEY_REELS, JSON.stringify(reels)); renderInventory(); try{ populateSheetReelSelect(); }catch(e){} }
+function saveFans(){ localStorage.setItem(KEY_FANS, JSON.stringify(fanSizes)); renderFans(); }
+function saveBottoms(){ localStorage.setItem(KEY_BOTTOMS, JSON.stringify(bottomSizes)); renderBottoms(); }
+
+// ------- Tabs -------
+document.querySelectorAll('.tabs button').forEach(btn=> btn.addEventListener('click', ()=>{
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const t = btn.dataset.tab || btn.textContent.toLowerCase();
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  document.getElementById(t).style.display='block';
+}));
+
+// ------- Inventory -------
+const invTypeSel = document.getElementById('invType');
+const defaultTypes = ['PLA Coated','Bio BPS','Water Barrier','Uncoated','Other'];
+function populateType(){
+  invTypeSel.innerHTML='';
+  defaultTypes.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; invTypeSel.appendChild(o); });
+}
+populateType();
+
+function renderInventory(){
+  const tbody = document.querySelector('#invTable tbody');
+  const q = (document.getElementById('invSearch').value || '').toLowerCase().trim();
+  tbody.innerHTML='';
+  (reels||[]).filter(r => {
+    if(!q) return true;
+    return (r.id||'').toLowerCase().includes(q) || (r.type||'').toLowerCase().includes(q) || (r.notes||'').toLowerCase().includes(q);
+  }).forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.id}</td><td>${r.width}</td><td>${r.gsm||''}</td><td>${r.weight||''}</td><td>${r.type||''}</td><td class="small muted">${r.date||''}</td><td>${r.notes||''}</td><td class="actions"><button data-id="${r.id}" class="editInv">Edit</button> <button data-id="${r.id}" class="delInv">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function genReelId(){ let n = reels.length+1; while(reels.some(r=>r.id==='R'+String(n).padStart(3,'0'))) n++; return 'R'+String(n).padStart(3,'0'); }
+document.getElementById('addInvBtn').addEventListener('click', ()=>{
+  const width = parseFloat(document.getElementById('invWidth').value);
+  const gsm = parseFloat(document.getElementById('invGsm').value);
+  const weight = parseFloat(document.getElementById('invWeight').value);
+  const type = document.getElementById('invType').value;
+  if(!width || !gsm || !weight){ alert('Please fill width, GSM and weight'); return; }
+  const id = genReelId();
+  const dateVal = (document.getElementById('invDate').value || new Date().toISOString().slice(0,10));
+  const item = { id, width, gsm, weight, type, date: dateVal, notes: '' };
+  reels.push(item); saveReels(); clearInvForm(); showToast('Added reel');
+});
+document.querySelector('#invTable tbody').addEventListener('click', e=>{
+  const id = e.target.dataset.id; if(!id) return;
+  if(e.target.classList.contains('delInv')){ if(!confirm('Delete reel '+id+'?')) return; reels = reels.filter(r=>r.id!==id); saveReels(); showToast('Deleted'); }
+  if(e.target.classList.contains('editInv')){
+    const item = reels.find(r=>r.id===id); if(!item) return;
+    document.getElementById('invWidth').value = item.width;
+    document.getElementById('invGsm').value = item.gsm;
+    document.getElementById('invWeight').value = item.weight;
+    const dv = document.getElementById('invDate'); if(dv){ dv.value = (item.date||''); }
+    document.getElementById('invType').value = item.type;
+    reels = reels.filter(r=>r.id!==id); saveReels();
+  }
+});
+document.getElementById('exportInv').addEventListener('click', ()=>{ exportExcel(KEY_REELS, reels); });
+document.getElementById('clearInv').addEventListener('click', ()=>{ if(confirm('Clear all reels?')){ reels=[]; saveReels(); showToast('Cleared'); } });
+document.getElementById('invSearch').addEventListener('input', renderInventory);
+function clearInvForm(){ document.getElementById('invWidth').value=''; document.getElementById('invGsm').value=''; document.getElementById('invWeight').value=''; const dv=document.getElementById('invDate'); if(dv){ dv.value=''; } document.getElementById('invType').value=defaultTypes[0]; }
+
+// ------- Fan Sizes -------
+function renderFans(){
+  const tbody = document.querySelector('#fanTable tbody'); tbody.innerHTML='';
+  (fanSizes||[]).forEach(f=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${f.id}</td><td>${f.name}</td><td>${f.dieW}×${f.dieH}</td><td>${f.printW}×${f.printH}</td><td>${f.rows||''}</td><td>${f.ups1||''}</td><td>${f.ups2||''}</td><td>${f.ups3||''}</td><td>${f.ups4||''}</td><td><button data-id="${f.id}" class="editFan">Edit</button> <button data-id="${f.id}" class="delFan">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function genFanId(){ let n = fanSizes.length+1; while(fanSizes.some(f=>f.id==='F'+String(n).padStart(3,'0'))) n++; return 'F'+String(n).padStart(3,'0'); }
+document.getElementById('addFan').addEventListener('click', ()=>{
+  const name = document.getElementById('fanName').value.trim(); if(!name){ alert('Name required'); return; }
+  const dieW = parseFloat(document.getElementById('dieW').value)||0; const dieH = parseFloat(document.getElementById('dieH').value)||0;
+  const printW = parseFloat(document.getElementById('printW').value)||0; const printH = parseFloat(document.getElementById('printH').value)||0;
+  const rows = parseInt(document.getElementById('rows').value,10)||0;
+  const ups1 = parseFloat(document.getElementById('ups1').value)||0; const ups2 = parseFloat(document.getElementById('ups2').value)||0; const ups3 = parseFloat(document.getElementById('ups3').value)||0; const ups4 = parseFloat(document.getElementById('ups4').value)||0;
+  const id = genFanId();
+  fanSizes.push({ id, name, dieW, dieH, printW, printH, rows, ups1, ups2, ups3, ups4 });
+  saveFans(); clearFanForm(); showToast('Fan size added');
+});
+document.querySelector('#fanTable tbody').addEventListener('click', e=>{
+  const id = e.target.dataset.id; if(!id) return;
+  if(e.target.classList.contains('delFan')){ if(!confirm('Delete fan '+id+'?')) return; fanSizes = fanSizes.filter(f=>f.id!==id); saveFans(); }
+  if(e.target.classList.contains('editFan')){
+    const f = fanSizes.find(x=>x.id===id); if(!f) return;
+    document.getElementById('fanName').value = f.name; document.getElementById('dieW').value = f.dieW; document.getElementById('dieH').value = f.dieH;
+    document.getElementById('printW').value = f.printW; document.getElementById('printH').value = f.printH; document.getElementById('rows').value = f.rows;
+    document.getElementById('ups1').value = f.ups1; document.getElementById('ups2').value = f.ups2; document.getElementById('ups3').value = f.ups3; document.getElementById('ups4').value = f.ups4;
+    fanSizes = fanSizes.filter(x=>x.id!==id); saveFans();
+  }
+});
+document.getElementById('exportFans').addEventListener('click', ()=>{ exportExcel(KEY_FANS, fanSizes); });
+document.getElementById('clearFans').addEventListener('click', ()=>{ if(confirm('Clear all fan sizes?')){ fanSizes=[]; saveFans(); showToast('Cleared fans'); } });
+function clearFanForm(){ document.getElementById('fanName').value=''; document.getElementById('dieW').value=''; document.getElementById('dieH').value=''; document.getElementById('printW').value=''; document.getElementById('printH').value=''; document.getElementById('rows').value=''; document.getElementById('ups1').value=''; document.getElementById('ups2').value=''; document.getElementById('ups3').value=''; document.getElementById('ups4').value=''; }
+
+// ------- Bottoms -------
+function renderBottoms(){
+  const tbody = document.querySelector('#bottomTable tbody'); tbody.innerHTML='';
+  (bottomSizes||[]).forEach(b=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${b.id}</td><td>${b.name}</td><td>${b.width}</td><td><button data-id="${b.id}" class="delBottom">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function genBottomId(){ let n = bottomSizes.length+1; while(bottomSizes.some(b=>b.id==='B'+String(n).padStart(3,'0'))) n++; return 'B'+String(n).padStart(3,'0'); }
+document.getElementById('addBottom').addEventListener('click', ()=>{
+  const name = document.getElementById('bottomName').value.trim(); const width = parseFloat(document.getElementById('bottomWidth').value)||0;
+  if(!name || !width){ alert('Name and width required'); return; }
+  const id = genBottomId(); bottomSizes.push({ id, name, width }); saveBottoms(); document.getElementById('bottomName').value=''; document.getElementById('bottomWidth').value=''; showToast('Bottom added');
+});
+document.querySelector('#bottomTable tbody').addEventListener('click', e=>{
+  const id = e.target.dataset.id; if(!id) return;
+  if(e.target.classList.contains('delBottom')){ if(!confirm('Delete bottom '+id+'?')) return; bottomSizes = bottomSizes.filter(b=>b.id!==id); saveBottoms(); }
+});
+document.getElementById('exportBottoms').addEventListener('click', ()=>{ exportExcel(KEY_BOTTOMS, bottomSizes); });
+document.getElementById('clearBottoms').addEventListener('click', ()=>{ if(confirm('Clear all bottoms?')){ bottomSizes=[]; saveBottoms(); showToast('Cleared bottoms'); } });
+
+// ------- Shared Helpers -------
+function exportExcel(key, arr){
+  if(!arr || arr.length===0){ alert('No data'); return; }
+  const header = Object.keys(arr[0]);
+  const rows = arr.map(r=>header.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(','));
+  const csv = [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = key + '.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+function exportExcel(key, arr){
+  if(!arr || arr.length===0){ alert('No data'); return; }
+  const header = Object.keys(arr[0] || {});
+  const escapeHTML = (s)=>String(s||'')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  // Build an HTML table that Excel can open
+  let table = '<table><thead><tr>' + header.map(h=>'<th>'+escapeHTML(h)+'</th>').join('') + '</tr></thead><tbody>';
+  for(const row of arr){
+    table += '<tr>' + header.map(h=>'<td>'+escapeHTML(row[h])+'</td>').join('') + '</tr>';
+  }
+  table += '</tbody></table>';
+
+  // Excel-compatible HTML wrapper
+  const template = `
+  <html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:x="urn:schemas-microsoft-com:office:excel"
+        xmlns="http://www.w3.org/TR/REC-html40">
+  <head>
+    <!--[if gte mso 9]><xml>
+    <x:ExcelWorkbook>
+      <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+          <x:Name>${key}</x:Name>
+          <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+        </x:ExcelWorksheet>
+      </x:ExcelWorksheets>
+    </x:ExcelWorkbook>
+    </xml><![endif]-->
+    <meta charset="utf-8" />
+  </head>
+  <body>${table}</body>
+  </html>`;
+
+  const blob = new Blob([template], { type: 'application/vnd.ms-excel' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = key + '.xls';
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  a.remove();
+}
+
+function showToast(msg='Saved'){
+  const el = document.createElement('div'); el.className='toast'; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),1400);
+}
+
+
+// ------- Reel Planner -------
+function unique(arr){ return Array.from(new Set(arr)); }
+
+function buildPlannerFilters(){
+  // Fan list
+  const fanSel = document.getElementById('plannerFan');
+  fanSel.innerHTML = '';
+  const FAN_OPT_ALL = document.createElement('option');
+  FAN_OPT_ALL.value = '';
+  FAN_OPT_ALL.textContent = '— Any Fan —';
+  fanSel.appendChild(FAN_OPT_ALL);
+  (fanSizes||[]).forEach(f=>{
+    const o = document.createElement('option');
+    o.value = f.name;
+    o.textContent = f.name;
+    fanSel.appendChild(o);
+  });
+
+  // Types (multi via checkboxes)
+  const typeWrap = document.getElementById('plannerTypes');
+  typeWrap.innerHTML = '';
+  const typesFromData = unique([...(reels||[]).map(r=>r.type).filter(Boolean), ...defaultTypes]);
+  typesFromData.forEach(t=>{
+    const id = 'ptype_'+t.replace(/\W+/g,'_');
+    const label = document.createElement('label'); label.style.display='inline-flex'; label.style.alignItems='center'; label.style.gap='4px';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.value=t; cb.id=id; cb.checked=true;
+    cb.addEventListener('change', renderPlannerResults);
+    const span = document.createElement('span'); span.textContent=t;
+    label.appendChild(cb); label.appendChild(span);
+    typeWrap.appendChild(label);
+  });
+
+  // GSMs (multi via checkboxes)
+  const gsmWrap = document.getElementById('plannerGsms');
+  gsmWrap.innerHTML = '';
+  const gsmsFromData = unique((reels||[]).map(r=>r.gsm).filter(v=>v!==undefined && v!==null)).sort((a,b)=>a-b);
+  gsmsFromData.forEach(g=>{
+    const id = 'pgsm_'+String(g).replace(/\W+/g,'_');
+    const label = document.createElement('label'); label.style.display='inline-flex'; label.style.alignItems='center'; label.style.gap='4px';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.value=g; cb.id=id; cb.checked=true;
+    cb.addEventListener('change', renderPlannerResults);
+    const span = document.createElement('span'); span.textContent=g;
+    label.appendChild(cb); label.appendChild(span);
+    gsmWrap.appendChild(label);
+  });
+
+  // Fan select change
+  fanSel.addEventListener('change', renderPlannerResults);
+
+  // Select all/none handlers
+  document.getElementById('plannerTypesAll').onclick = ()=>{ typeWrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true); renderPlannerResults(); };
+  document.getElementById('plannerTypesNone').onclick = ()=>{ typeWrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false); renderPlannerResults(); };
+  document.getElementById('plannerGsmsAll').onclick = ()=>{ gsmWrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true); renderPlannerResults(); };
+  document.getElementById('plannerGsmsNone').onclick = ()=>{ gsmWrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false); renderPlannerResults(); };
+
+  // Export
+  document.getElementById('plannerExport').addEventListener('click', ()=>{
+    const filtered = getPlannerFiltered();
+    exportExcel('reel_planner', filtered);
+  });
+
+  renderPlannerResults();
+}
+
+function getPlannerFiltered(){
+  const typeSel = Array.from(document.querySelectorAll('#plannerTypes input[type=checkbox]')).filter(cb=>cb.checked).map(cb=>cb.value);
+  const gsmSel = Array.from(document.querySelectorAll('#plannerGsms input[type=checkbox]')).filter(cb=>cb.checked).map(cb=>parseFloat(cb.value));
+  // Filter reels
+  let out = (reels||[]).filter(r=>{
+    const tOk = typeSel.length===0 ? true : typeSel.includes(r.type);
+    const gOk = gsmSel.length===0 ? true : gsmSel.includes(parseFloat(r.gsm));
+    return tOk && gOk;
+  });
+  return out;
+}
+
+function renderPlannerResults(){
+  const fanName = (document.getElementById('plannerFan')?.value || '').trim();
+  const tbody = document.querySelector('#plannerTable tbody');
+  tbody.innerHTML = '';
+  const filtered = getPlannerFiltered();
+
+  filtered.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input type='checkbox' class='plannerPick' data-id='${r.id}'/></td><td>${r.id}</td><td>${r.width}</td><td>${r.gsm||''}</td><td>${r.weight||''}</td><td>${r.type||''}</td><td class="small muted">${r.date||''}</td><td>${r.notes||''}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Stats
+  const totalWeight = filtered.reduce((sum,r)=>sum + (parseFloat(r.weight)||0), 0);
+  document.getElementById('plannerCount').textContent = String(filtered.length);
+  document.getElementById('plannerWeight').textContent = String(Number(totalWeight.toFixed(2)));
+  document.getElementById('plannerFanBadge').textContent = fanName || '—';
+}
+
+// Rebuild filters when data changes (saveReels already re-renders inventory; we hook in)
+const _origSaveReels = saveReels;
+saveReels = function(){ _origSaveReels(); try{ buildPlannerFilters(); }catch(e){} };
+
+// Build planner UI on load as well
+document.addEventListener('DOMContentLoaded', ()=>{ try{ buildPlannerFilters(); }catch(e){} });
+
+function getSelectedPlannerReels(){
+  const ids = Array.from(document.querySelectorAll('#plannerTable .plannerPick:checked')).map(cb=>cb.dataset.id);
+  return (reels||[]).filter(r=>ids.includes(r.id));
+}
+
+function computeSlitting(reelWidth, unitWidth){
+  const w = parseFloat(reelWidth)||0;
+  const u = parseFloat(unitWidth)||0;
+  if(!u || u<=0) return { lanes: 0, leftover: w };
+  const lanes = Math.floor(w / u);
+  const used = lanes * u;
+  const leftover = +(w - used).toFixed(2);
+  return { lanes, leftover };
+}
+
+
+function takePlannerAction(){
+  const plannerRoot = document.getElementById('planner');
+  const fanName = (plannerRoot.querySelector('#plannerFan')?.value || '').trim();
+  if(!fanName){
+    alert('Please select a Fan Name to use its U widths.');
+    return;
+  }
+  const fan = (fanSizes||[]).find(f=>f.name===fanName);
+  if(!fan){
+    alert('Selected fan not found in Fan Sizes.');
+    return;
+  }
+  const ids = Array.from(plannerRoot.querySelectorAll('#plannerTable .plannerPick:checked')).map(cb=>cb.dataset.id);
+  const selected = (reels||[]).filter(r=>ids.includes(r.id));
+  if(selected.length===0){
+    alert('Please select at least one reel from the list.');
+    return;
+  }
+  const uMode = (plannerRoot.querySelector('input[name=\"uMode\"]:checked')?.value || '1');
+  const uWidth = (uMode==='1'? fan.ups1 : uMode==='2'? fan.ups2 : uMode==='3'? fan.ups3 : fan.ups4) || 0;
+  const uW = parseFloat(uWidth)||0;
+
+  const tbody = plannerRoot.querySelector('#plannerActionTable tbody');
+  tbody.innerHTML = '';
+  selected.forEach(r=>{
+    const rw = parseFloat(r.width)||0;
+    let leftover;
+    if(!uW || uW<=0 || rw < uW){
+      leftover = rw; // cannot slit one strip -> nothing cut
+    }else{
+      leftover = +(rw - uW).toFixed(2);
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="actionPick" data-id="${r.id}" checked/></td>
+      <td>${r.id}</td>
+      <td>${rw}</td>
+      <td>${uMode}U</td>
+      <td>${uW || ''}</td>
+      <td>${leftover}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const actionCard = plannerRoot.querySelector('#plannerActionCard');
+  if(actionCard) actionCard.style.display = 'block';
+}
+
+
+
+function exportPlannerAction(){
+  const plannerRoot = document.getElementById('planner');
+  const rows = [];
+  plannerRoot.querySelectorAll('#plannerActionTable tbody tr').forEach(tr=>{
+    const tds = tr.querySelectorAll('td');
+    if(!tds.length) return;
+    const checked = tr.querySelector('.actionPick')?.checked;
+    if(!checked) return;
+    rows.push({
+      "Reel ID": tds[1].textContent.trim(),
+      "Reel Width (cm)": tds[2].textContent.trim(),
+      "Selected U": tds[3].textContent.trim(),
+      "U width (cm)": tds[4].textContent.trim(),
+      "Leftover after 1 strip (cm)": tds[5].textContent.trim(),
+    });
+  });
+  exportExcel('single_strip_leftover', rows);
+}
+
+
+document.getElementById('plannerAction').addEventListener('click', takePlannerAction);
+(function(){ const root=document.getElementById('planner'); root.querySelector('#plannerActionClose').addEventListener('click', ()=>{ root.querySelector('#plannerActionCard').style.display='none'; }); root.querySelector('#plannerActionExport').addEventListener('click', exportPlannerAction); })();
+
+
+// ------- Initial Render -------
+renderInventory(); renderFans(); renderBottoms(); buildPlannerFilters();
+
+// ------- Sheet Calculator -------
+(function(){
+  const PRESETS_KEY = 'sheetcalc_presets_v1';
+  function toMeters(val, unit){
+    const v = parseFloat(val)||0;
+    if(unit==='mm') return v/1000;
+    if(unit==='cm') return v/100;
+    return v;
+  }
+  function fmt(n, digits=2){
+    if(!isFinite(n)) return '–';
+    return (Math.round(n*10**digits)/10**digits).toLocaleString(undefined, {minimumFractionDigits:digits, maximumFractionDigits:digits});
+  }
+  function $(id){ return document.getElementById(id); }
+
+  function loadPresets(){ try{ return JSON.parse(localStorage.getItem(PRESETS_KEY)||'[]')||[]; }catch(e){ return []; } }
+  function savePresets(list){ localStorage.setItem(PRESETS_KEY, JSON.stringify(list||[])); renderPresets(); }
+
+  function renderPresets(){
+    const box = $('sc_saved_list'); if(!box) return;
+    const presets = loadPresets();
+    box.innerHTML = '';
+    if(!presets.length){ box.innerHTML = '<div class="small muted">No presets yet.</div>'; return; }
+    presets.forEach((p, idx)=>{
+      const chip = document.createElement('div');
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#eef2f1;border:1px solid #e6e9ee;border-radius:999px;padding:6px 10px;';
+      const btn = document.createElement('button');
+      btn.className='secondary';
+      btn.textContent = p.name || ('Preset '+(idx+1));
+      btn.addEventListener('click', ()=>{ applyPreset(p); });
+      const del = document.createElement('button');
+      del.className='secondary';
+      del.textContent='×';
+      del.title='Delete preset';
+      del.addEventListener('click', ()=>{
+        const arr = loadPresets(); arr.splice(idx,1); savePresets(arr);
+      });
+      chip.appendChild(btn); chip.appendChild(del);
+      box.appendChild(chip);
+    });
+  }
+
+  function applyPreset(p){
+    if(!p) return;
+    $('sc_len').value = p.len||'';
+    $('sc_len_unit').value = p.len_unit||'mm';
+    $('sc_wid').value = p.wid||'';
+    $('sc_wid_unit').value = p.wid_unit||'mm';
+    $('sc_reel_wt').value = p.reel_wt||'';
+    $('sc_core_wt').value = p.core_wt||'5';
+    $('sc_gsm').value = p.gsm||'';
+    $('sc_wastage').value = p.waste||'2';
+    $('sc_round').value = p.round||'floor';
+    updateSheetAreaHint();
+  }
+
+  function reelById(id){ try{ return (reels||[]).find(r=> r.id===id); }catch(e){ return null; } }
+  function populateSheetReelSelect(){
+    const sel = $('sc_reel_pick'); if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— optional —</option>';
+    (reels||[]).forEach(r=>{
+      const o = document.createElement('option');
+      o.value = r.id;
+      o.textContent = `${r.id} — ${r.width}cm · ${r.gsm} GSM · ${r.weight}kg`;
+      sel.appendChild(o);
+    });
+    if(cur && Array.from(sel.options).some(op=>op.value===cur)) sel.value = cur;
+    updateReelInfo();
+  }
+
+  function updateReelInfo(){
+    const sel = $('sc_reel_pick'); const info = $('sc_reel_info');
+    const id = sel?.value || '';
+    if(!id){ info.textContent = 'No reel selected'; return; }
+    const r = reelById(id);
+    if(!r){ info.textContent = 'No reel selected'; return; }
+    info.textContent = `Selected: ${r.id} — ${r.width}cm · ${r.gsm} GSM · ${r.weight}kg`;
+    // Autofill GSM and Reel Weight if empty or different
+    if(!parseFloat(($('sc_gsm').value||''))) $('sc_gsm').value = r.gsm||'';
+    if(!parseFloat(($('sc_reel_wt').value||''))) $('sc_reel_wt').value = r.weight||'';
+  }
+
+  function updateSheetAreaHint(){
+    const Lm = toMeters(($('sc_len').value||0), $('sc_len_unit').value);
+    const Wm = toMeters(($('sc_wid').value||0), $('sc_wid_unit').value);
+    const A = Lm*Wm;
+    $('sc_sheet_area_hint').textContent = A>0 ? `Sheet area: ${fmt(A,4)} m²` : 'Sheet area: –';
+  }
+
+  function calc(){
+    const Lm = toMeters(($('sc_len').value||0), $('sc_len_unit').value);
+    const Wm = toMeters(($('sc_wid').value||0), $('sc_wid_unit').value);
+    const A_sheet = Lm*Wm; // m²
+    const reel_wt = parseFloat(($('sc_reel_wt').value||'0'))||0; // kg
+    const core_wt = parseFloat(($('sc_core_wt').value||'0'))||0; // kg
+    const gsm = parseFloat(($('sc_gsm').value||'0'))||0; // g/m²
+    const wastage = parseFloat(($('sc_wastage').value||'0'))||0; // %
+    const roundMode = $('sc_round').value||'floor';
+
+    if(!(A_sheet>0) || !(reel_wt>0) || !(gsm>0)){
+      alert('Enter sheet size, reel weight and GSM'); return;
+    }
+    const net_wt = Math.max(reel_wt - Math.max(core_wt,0), 0); // kg
+    const usable_wt = net_wt * (1 - Math.max(wastage,0)/100); // kg
+    const net_area = (usable_wt * 1000) / gsm; // m²  (since gsm = g/m²)
+    const raw_count = net_area / A_sheet;
+
+    let sheets = raw_count;
+    let roundNote = '';
+    if(roundMode==='floor'){ sheets = Math.floor(raw_count); roundNote = 'Rounded down (safe)'; }
+    else if(roundMode==='ceil'){ sheets = Math.ceil(raw_count); roundNote = 'Rounded up'; }
+    else { sheets = Math.round(raw_count); roundNote = 'Rounded to nearest'; }
+
+    const w_per_sheet_g = gsm * A_sheet; // grams
+    const w_per_sheet_kg = w_per_sheet_g/1000;
+
+    $('sc_sheets').textContent = isFinite(sheets) ? sheets.toLocaleString() : '–';
+    $('sc_round_note').textContent = roundNote;
+    $('sc_area').textContent = isFinite(net_area) ? `${fmt(net_area,3)} m²` : '–';
+    $('sc_w_per_sheet').textContent = isFinite(w_per_sheet_g) ? `${fmt(w_per_sheet_g,1)} g (${fmt(w_per_sheet_kg,3)} kg)` : '–';
+
+    const details = [
+      `Sheet size = ${fmt(Lm,3)} m × ${fmt(Wm,3)} m = ${fmt(A_sheet,4)} m²`,
+      `Net reel weight = ${fmt(net_wt,2)} kg  → after wastage ${fmt(usable_wt,2)} kg`,
+      `GSM = ${fmt(gsm,1)} g/m² → Net paper area = ${fmt(net_area,3)} m²`,
+      `Approx weight/sheet = ${fmt(w_per_sheet_g,1)} g`,
+      `Raw sheet count = ${fmt(raw_count,3)} → ${sheets} (${roundNote})`
+    ].join('<br/>');
+    $('sc_calc_details').innerHTML = details;
+  }
+
+  function resetForm(){
+    ['sc_len','sc_wid','sc_reel_wt','sc_core_wt','sc_gsm','sc_wastage'].forEach(id=>{ const el=$(id); if(!el) return; });
+    $('sc_len').value=''; $('sc_wid').value=''; $('sc_reel_wt').value=''; $('sc_core_wt').value='5'; $('sc_gsm').value=''; $('sc_wastage').value='2';
+    $('sc_round').value='floor'; $('sc_len_unit').value='mm'; $('sc_wid_unit').value='mm'; $('sc_reel_pick').value='';
+    $('sc_reel_info').textContent='No reel selected';
+    $('sc_sheet_area_hint').textContent='Sheet area: –';
+    $('sc_sheets').textContent='–'; $('sc_round_note').textContent=''; $('sc_area').textContent='–'; $('sc_w_per_sheet').textContent='–'; $('sc_calc_details').innerHTML='';
+  }
+
+  function savePreset(){
+    const name = prompt('Preset name? (e.g., 700×500 / 170 GSM)');
+    if(!name) return;
+    const p = {
+      name,
+      len: $('sc_len').value, len_unit: $('sc_len_unit').value,
+      wid: $('sc_wid').value, wid_unit: $('sc_wid_unit').value,
+      reel_wt: $('sc_reel_wt').value, core_wt: $('sc_core_wt').value,
+      gsm: $('sc_gsm').value, waste: $('sc_wastage').value, round: $('sc_round').value
+    };
+    const arr = loadPresets(); arr.unshift(p); savePresets(arr.slice(0,100));
+  }
+
+  function bind(){
+    const ids = ['sc_len','sc_wid']; ids.forEach(id=>{ const el=$(id); if(el) el.addEventListener('input', updateSheetAreaHint); });
+    $('sc_len_unit')?.addEventListener('change', updateSheetAreaHint);
+    $('sc_wid_unit')?.addEventListener('change', updateSheetAreaHint);
+    $('sc_reel_pick')?.addEventListener('change', ()=>{ updateReelInfo(); });
+    $('sc_calc')?.addEventListener('click', calc);
+    $('sc_reset')?.addEventListener('click', resetForm);
+    $('sc_save')?.addEventListener('click', savePreset);
+    $('sc_clear_presets')?.addEventListener('click', ()=>{ if(confirm('Clear all presets?')){ savePresets([]); }});
+    renderPresets();
+    populateSheetReelSelect();
+  }
+
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', bind); } else { bind(); }
+
+  // Hook into existing saveReels() if present so the reel dropdown stays fresh
+  try{
+    const _origSaveReels = saveReels;
+    window.saveReels = function(){ try{ _origSaveReels(); }catch(e){} try{ populateSheetReelSelect(); }catch(e){} };
+  }catch(e){
+    // ignore
+  }
+})();
+
+</script>
+</body>
+</html>
