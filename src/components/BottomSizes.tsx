@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Download, Edit, Trash2, Circle } from "lucide-react";
+import { Plus, Search, Download, Edit, Trash2, Circle, RefreshCw } from "lucide-react";
 import { 
   getBottomSizes, 
   saveBottomSizes, 
@@ -14,19 +14,45 @@ import {
   exportToCSV, 
   type BottomSize 
 } from "@/lib/storage";
+import { Spinner } from "./Spinner";
 import { useToast } from "@/hooks/use-toast";
 
 export const BottomSizes = () => {
-  const [bottomSizes, setBottomSizes] = useState<BottomSize[]>(getBottomSizes);
+  const [bottomSizes, setBottomSizes] = useState<BottomSize[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBottom, setEditingBottom] = useState<BottomSize | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
     width: ""
   });
+
+  const fetchBottomSizes = async () => {
+    setLoading(true);
+    try {
+      const data = await getBottomSizes();
+      setBottomSizes(data);
+    } catch {
+      toast({ title: "Error", description: "Failed to load bottom sizes", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBottomSizes();
+  }, [toast]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchBottomSizes();
+    setRefreshing(false);
+  };
 
   const filteredBottomSizes = useMemo(() => {
     return bottomSizes.filter(bottom =>
@@ -43,9 +69,10 @@ export const BottomSizes = () => {
     setEditingBottom(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (submitting) return; // Prevent double submit
     if (!formData.name || !formData.width) {
       toast({
         title: "Validation Error",
@@ -54,34 +81,37 @@ export const BottomSizes = () => {
       });
       return;
     }
-
-    const bottomData: BottomSize = {
-      id: editingBottom ? editingBottom.id : generateBottomId(),
-      name: formData.name,
-      width: parseFloat(formData.width)
-    };
-
-    let updatedBottomSizes;
-    if (editingBottom) {
-      updatedBottomSizes = bottomSizes.map(bottom => bottom.id === editingBottom.id ? bottomData : bottom);
+    setSubmitting(true);
+    try {
+      let id = editingBottom ? editingBottom.id : undefined;
+      if (!id) {
+        id = await generateBottomId();
+      }
+      const bottomData: BottomSize = {
+        id,
+        name: formData.name,
+        width: parseFloat(formData.width)
+      };
+      let updatedBottomSizes;
+      if (editingBottom) {
+        updatedBottomSizes = bottomSizes.map(bottom => bottom.id === editingBottom.id ? bottomData : bottom);
+      } else {
+        updatedBottomSizes = [...bottomSizes, bottomData];
+      }
+      setBottomSizes(updatedBottomSizes);
+      await saveBottomSizes(updatedBottomSizes);
       toast({
         title: "Success",
-        description: "Bottom size updated successfully",
+        description: editingBottom ? "Bottom size updated successfully" : "Bottom size added successfully",
         variant: "default"
       });
-    } else {
-      updatedBottomSizes = [...bottomSizes, bottomData];
-      toast({
-        title: "Success", 
-        description: "Bottom size added successfully",
-        variant: "default"
-      });
+      setIsDialogOpen(false);
+      resetForm();
+    } catch {
+      toast({ title: "Error", description: "Failed to save bottom sizes", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-
-    setBottomSizes(updatedBottomSizes);
-    saveBottomSizes(updatedBottomSizes);
-    setIsDialogOpen(false);
-    resetForm();
   };
 
   const handleEdit = (bottom: BottomSize) => {
@@ -93,16 +123,22 @@ export const BottomSizes = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+
+  const handleDelete = async (id: string) => {
     const updatedBottomSizes = bottomSizes.filter(bottom => bottom.id !== id);
     setBottomSizes(updatedBottomSizes);
-    saveBottomSizes(updatedBottomSizes);
-    toast({
-      title: "Success",
-      description: "Bottom size deleted successfully",
-      variant: "default"
-    });
+    try {
+      await saveBottomSizes(updatedBottomSizes);
+      toast({
+        title: "Success",
+        description: "Bottom size deleted successfully",
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete bottom size", variant: "destructive" });
+    }
   };
+
 
   const handleExport = () => {
     exportToCSV(bottomSizes, 'bottom-sizes');
@@ -113,6 +149,10 @@ export const BottomSizes = () => {
     });
   };
 
+  if (loading) {
+    return <Spinner label="Loading bottom sizes..." />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -120,9 +160,18 @@ export const BottomSizes = () => {
           <h1 className="text-3xl font-bold text-foreground">Bottom Sizes</h1>
           <p className="text-muted-foreground mt-1">Manage cup bottom size specifications</p>
         </div>
-        <Badge variant="secondary" className="px-4 py-2">
-          {bottomSizes.length} Sizes
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="px-4 py-2">
+            {bottomSizes.length} Sizes
+          </Badge>
+          <Button size="icon" variant="ghost" onClick={handleRefresh} disabled={refreshing || loading} title="Refresh">
+            {refreshing ? (
+              <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-elegant border-border/50">
@@ -172,8 +221,8 @@ export const BottomSizes = () => {
                       />
                     </div>
                     <div className="flex gap-2 pt-4">
-                      <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90">
-                        {editingBottom ? "Update Bottom Size" : "Add Bottom Size"}
+                      <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90" disabled={submitting}>
+                        {submitting ? (editingBottom ? "Updating..." : "Adding...") : (editingBottom ? "Update Bottom Size" : "Add Bottom Size")}
                       </Button>
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                         Cancel
@@ -248,4 +297,4 @@ export const BottomSizes = () => {
       </Card>
     </div>
   );
-};
+}

@@ -9,7 +9,7 @@ import { SlitPlanner } from "./SlitPlanner";
 import { SheetCalculator } from "./SheetCalculator";
 
 export const Layout = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("inventory");
 
   const renderContent = () => {
     switch (activeTab) {
@@ -36,24 +36,21 @@ export const Layout = () => {
         <AppSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
         <div className="flex-1 flex flex-col min-h-screen md:ml-64">
           <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-md sticky top-0 z-40 shadow-sm flex items-center w-full px-2 sm:px-4 md:px-6">
-            <div className="flex items-center justify-between h-full w-full">
-              <div className="flex items-center gap-4">
-                {/* Hamburger menu for mobile, placed in header */}
-                <button
-                  className="block md:hidden bg-white border rounded-lg p-2 shadow-md mr-2"
-                  aria-label="Open sidebar"
-                  onClick={() => {
-                    const event = new CustomEvent('open-mobile-sidebar');
-                    window.dispatchEvent(event);
-                  }}
-                >
-                  <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
-                <div>
-                  <h1 className="text-xl font-bold text-foreground">
-                    Shakthi Innovative Crafts : Slit Master
-                  </h1>
-                </div>
+            <div className="flex items-center justify-center h-full w-full relative">
+              <button
+                className="block md:hidden bg-white border rounded-lg p-2 shadow-md mr-2 absolute left-0 top-1/2 -translate-y-1/2"
+                aria-label="Open sidebar"
+                onClick={() => {
+                  const event = new CustomEvent('open-mobile-sidebar');
+                  window.dispatchEvent(event);
+                }}
+              >
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              </button>
+              <div className="w-full flex justify-center">
+                <h1 className="text-xl font-bold text-foreground text-center">
+                  Shakthi Innovative Crafts : Slit Master
+                </h1>
               </div>
             </div>
           </header>

@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { Scissors, Download, BarChart3, Trash2 } from "lucide-react";
 import { 
   getReels, 
@@ -14,8 +15,12 @@ import {
   saveSlitResults,
   exportToCSV, 
   saveReels,
-  type SlitPlanResult 
+  type SlitPlanResult, 
+  type ReelInventory, 
+  type FanSize, 
+  type BottomSize
 } from "@/lib/storage";
+import { Spinner } from "./Spinner";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -29,20 +34,50 @@ export const SlitPlanner = () => {
   const [selectedFan, setSelectedFan] = useState("");
   const [selectedUPS, setSelectedUPS] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
-  const [results, setResults] = useState<SlitPlanRow[]>(() => {
-    // Try to load previous results, but fallback to [] if missing sideArr/botArr
-    const raw = getSlitResults();
-    return Array.isArray(raw) && raw.length > 0 && 'sideArr' in raw[0] && 'botArr' in raw[0]
-      ? (raw as SlitPlanRow[])
-      : [];
-  });
+  const [results, setResults] = useState<SlitPlanRow[]>([]);
+  const [reels, setReels] = useState<ReelInventory[]>([]);
+  const [fanSizes, setFanSizes] = useState<FanSize[]>([]);
+  const [bottomSizes, setBottomSizes] = useState<BottomSize[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const reels = getReels();
-  const fanSizes = getFanSizes();
-  const bottomSizes = getBottomSizes();
+  const fetchPlannerData = async () => {
+    setLoading(true);
+    try {
+      const [reelsData, fanSizesData, bottomSizesData, slitResultsData] = await Promise.all([
+        getReels(),
+        getFanSizes(),
+        getBottomSizes(),
+        getSlitResults()
+      ]);
+      setReels(reelsData);
+      setFanSizes(fanSizesData);
+      setBottomSizes(bottomSizesData);
+      if (Array.isArray(slitResultsData) && slitResultsData.length > 0 && 'sideArr' in slitResultsData[0] && 'botArr' in slitResultsData[0]) {
+        setResults(slitResultsData as SlitPlanRow[]);
+      } else {
+        setResults([]);
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to load planner data", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const generateSlitPlan = () => {
+  useEffect(() => {
+    fetchPlannerData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchPlannerData();
+    setRefreshing(false);
+  };
+
+  const generateSlitPlan = async () => {
     if (!selectedReel || !selectedFan || !selectedUPS || !selectedVariant) {
       toast({
         title: "Validation Error",
@@ -144,22 +179,34 @@ export const SlitPlanner = () => {
     newResults.forEach(r => { const k = r.combination + '|' + r.usedWidth; if (!uniq.has(k)) uniq.set(k, r); });
     const finalResults = Array.from(uniq.values()).sort((a, b) => b.efficiency - a.efficiency || a.waste - b.waste);
     setResults(finalResults);
-    saveSlitResults(finalResults);
-    toast({
-      title: "Success",
-      description: `Generated ${finalResults.length} slit plan combinations`,
-      variant: "default"
-    });
+    setLoading(true);
+    try {
+      await saveSlitResults(finalResults);
+      toast({
+        title: "Success",
+        description: `Generated ${finalResults.length} slit plan combinations`,
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to save slit plan results", variant: "destructive" });
+    }
+    setLoading(false);
   };
 
-  const clearResults = () => {
+  const clearResults = async () => {
     setResults([]);
-    saveSlitResults([]);
-    toast({
-      title: "Cleared",
-      description: "Slit plan results cleared",
-      variant: "default"
-    });
+    setLoading(true);
+    try {
+      await saveSlitResults([]);
+      toast({
+        title: "Cleared",
+        description: "Slit plan results cleared",
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to clear slit plan results", variant: "destructive" });
+    }
+    setLoading(false);
   };
 
   const handleExport = () => {
@@ -171,7 +218,6 @@ export const SlitPlanner = () => {
       });
       return;
     }
-    
     exportToCSV(results, 'slit-plan-results');
     toast({
       title: "Export Complete",
@@ -185,7 +231,7 @@ export const SlitPlanner = () => {
   }, [results]);
 
   // Create child reels from a result
-  const handleCreateChildReels = (result: {
+  const handleCreateChildReels = async (result: {
     sideArr: { name: string; width: number }[];
     botArr: { name: string; width: number }[];
   }) => {
@@ -207,13 +253,24 @@ export const SlitPlanner = () => {
     }
     result.sideArr.forEach((s) => pushChild(s.width, `Slit child ${s.name}`));
     result.botArr.forEach((b) => pushChild(b.width, `Slit bottom ${b.name}`));
-    saveReels(updatedReels);
-    toast({
-      title: "Child reels created",
-      description: `Created ${result.sideArr.length + result.botArr.length} child reels`,
-      variant: "default"
-    });
+    setLoading(true);
+    try {
+      await saveReels(updatedReels);
+      setReels(updatedReels);
+      toast({
+        title: "Child reels created",
+        description: `Created ${result.sideArr.length + result.botArr.length} child reels`,
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to save child reels", variant: "destructive" });
+    }
+    setLoading(false);
   };
+
+  if (loading) {
+    return <Spinner label="Loading slit planner..." />;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -222,9 +279,18 @@ export const SlitPlanner = () => {
           <h1 className="text-3xl font-bold text-foreground">Slit Planner</h1>
           <p className="text-muted-foreground mt-1">Optimize paper cutting plans for maximum efficiency</p>
         </div>
-        <Badge variant="secondary" className="px-4 py-2">
-          {results.length} Plans
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="px-4 py-2">
+            {results.length} Plans
+          </Badge>
+          <Button size="icon" variant="ghost" onClick={handleRefresh} disabled={refreshing || loading} title="Refresh">
+            {refreshing ? (
+              <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

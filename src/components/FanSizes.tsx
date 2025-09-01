@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Download, Edit, Trash2, Layers } from "lucide-react";
+import { Plus, Search, Download, Edit, Trash2, Layers, RefreshCw } from "lucide-react";
 import { 
   getFanSizes, 
   saveFanSizes, 
@@ -14,14 +14,19 @@ import {
   exportToCSV, 
   type FanSize 
 } from "@/lib/storage";
+import { Spinner } from "./Spinner";
 import { useToast } from "@/hooks/use-toast";
 
+
 export const FanSizes = () => {
-  const [fanSizes, setFanSizes] = useState<FanSize[]>(getFanSizes);
+  const [fanSizes, setFanSizes] = useState<FanSize[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFan, setEditingFan] = useState<FanSize | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -35,6 +40,29 @@ export const FanSizes = () => {
     ups3Width: "",
     ups4Width: ""
   });
+
+  const fetchFanSizes = async () => {
+    setLoading(true);
+    try {
+      const data = await getFanSizes();
+      setFanSizes(data);
+    } catch {
+      toast({ title: "Error", description: "Failed to load fan sizes", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFanSizes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchFanSizes();
+    setRefreshing(false);
+  };
 
   const filteredFanSizes = useMemo(() => {
     return fanSizes.filter(fan =>
@@ -59,9 +87,10 @@ export const FanSizes = () => {
     setEditingFan(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (submitting) return; // Prevent double submit
     if (!formData.name || !formData.dieWidth || !formData.dieHeight || !formData.printWidth || !formData.printHeight || !formData.rows) {
       toast({
         title: "Validation Error",
@@ -70,42 +99,45 @@ export const FanSizes = () => {
       });
       return;
     }
-
-    const fanData: FanSize = {
-      id: editingFan ? editingFan.id : generateFanId(),
-      name: formData.name,
-      dieWidth: parseFloat(formData.dieWidth),
-      dieHeight: parseFloat(formData.dieHeight),
-      printWidth: parseFloat(formData.printWidth),
-      printHeight: parseFloat(formData.printHeight),
-      rows: parseInt(formData.rows),
-      ups1Width: parseFloat(formData.ups1Width) || 0,
-      ups2Width: parseFloat(formData.ups2Width) || 0,
-      ups3Width: parseFloat(formData.ups3Width) || 0,
-      ups4Width: parseFloat(formData.ups4Width) || 0
-    };
-
-    let updatedFanSizes;
-    if (editingFan) {
-      updatedFanSizes = fanSizes.map(fan => fan.id === editingFan.id ? fanData : fan);
+    setSubmitting(true);
+    try {
+      let id = editingFan ? editingFan.id : undefined;
+      if (!id) {
+        id = await generateFanId();
+      }
+      const fanData: FanSize = {
+        id,
+        name: formData.name,
+        dieWidth: parseFloat(formData.dieWidth),
+        dieHeight: parseFloat(formData.dieHeight),
+        printWidth: parseFloat(formData.printWidth),
+        printHeight: parseFloat(formData.printHeight),
+        rows: parseInt(formData.rows),
+        ups1Width: parseFloat(formData.ups1Width) || 0,
+        ups2Width: parseFloat(formData.ups2Width) || 0,
+        ups3Width: parseFloat(formData.ups3Width) || 0,
+        ups4Width: parseFloat(formData.ups4Width) || 0
+      };
+      let updatedFanSizes;
+      if (editingFan) {
+        updatedFanSizes = fanSizes.map(fan => fan.id === editingFan.id ? fanData : fan);
+      } else {
+        updatedFanSizes = [...fanSizes, fanData];
+      }
+      setFanSizes(updatedFanSizes);
+      await saveFanSizes(updatedFanSizes);
       toast({
         title: "Success",
-        description: "Fan size updated successfully",
+        description: editingFan ? "Fan size updated successfully" : "Fan size added successfully",
         variant: "default"
       });
-    } else {
-      updatedFanSizes = [...fanSizes, fanData];
-      toast({
-        title: "Success", 
-        description: "Fan size added successfully",
-        variant: "default"
-      });
+      setIsDialogOpen(false);
+      resetForm();
+    } catch {
+      toast({ title: "Error", description: "Failed to save fan sizes", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-
-    setFanSizes(updatedFanSizes);
-    saveFanSizes(updatedFanSizes);
-    setIsDialogOpen(false);
-    resetForm();
   };
 
   const handleEdit = (fan: FanSize) => {
@@ -125,16 +157,22 @@ export const FanSizes = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+
+  const handleDelete = async (id: string) => {
     const updatedFanSizes = fanSizes.filter(fan => fan.id !== id);
     setFanSizes(updatedFanSizes);
-    saveFanSizes(updatedFanSizes);
-    toast({
-      title: "Success",
-      description: "Fan size deleted successfully",
-      variant: "default"
-    });
+    try {
+      await saveFanSizes(updatedFanSizes);
+      toast({
+        title: "Success",
+        description: "Fan size deleted successfully",
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete fan size", variant: "destructive" });
+    }
   };
+
 
   const handleExport = () => {
     exportToCSV(fanSizes, 'fan-sizes');
@@ -145,6 +183,10 @@ export const FanSizes = () => {
     });
   };
 
+  if (loading) {
+    return <Spinner label="Loading fan sizes..." />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -152,9 +194,18 @@ export const FanSizes = () => {
           <h1 className="text-3xl font-bold text-foreground">Fan Sizes</h1>
           <p className="text-muted-foreground mt-1">Manage cup fan size specifications</p>
         </div>
-        <Badge variant="secondary" className="px-4 py-2">
-          {fanSizes.length} Sizes
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="px-4 py-2">
+            {fanSizes.length} Sizes
+          </Badge>
+          <Button size="icon" variant="ghost" onClick={handleRefresh} disabled={refreshing || loading} title="Refresh">
+            {refreshing ? (
+              <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-elegant border-border/50">
@@ -302,8 +353,8 @@ export const FanSizes = () => {
                     </div>
 
                     <div className="flex gap-2 pt-4">
-                      <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90">
-                        {editingFan ? "Update Fan Size" : "Add Fan Size"}
+                      <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90" disabled={submitting}>
+                        {submitting ? (editingFan ? "Updating..." : "Adding...") : (editingFan ? "Update Fan Size" : "Add Fan Size")}
                       </Button>
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                         Cancel
@@ -386,4 +437,4 @@ export const FanSizes = () => {
       </Card>
     </div>
   );
-};
+}

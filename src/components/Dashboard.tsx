@@ -6,21 +6,52 @@ import {
   Circle, 
   TrendingUp, 
   Weight, 
-  BarChart3 
+  BarChart3, 
+  RefreshCw 
 } from "lucide-react";
-import { getReels, getFanSizes, getBottomSizes } from "@/lib/storage";
-import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { getReels, getFanSizes, getBottomSizes, type ReelInventory, type FanSize, type BottomSize } from "@/lib/storage";
+import { useMemo, useEffect, useState } from "react";
+import { Spinner } from "./Spinner";
+
 
 export const Dashboard = () => {
-  const reels = getReels();
-  const fanSizes = getFanSizes();
-  const bottomSizes = getBottomSizes();
+  const [reels, setReels] = useState<ReelInventory[]>([]);
+  const [fanSizes, setFanSizes] = useState<FanSize[]>([]);
+  const [bottomSizes, setBottomSizes] = useState<BottomSize[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [reelsData, fanSizesData, bottomSizesData] = await Promise.all([
+        getReels(),
+        getFanSizes(),
+        getBottomSizes()
+      ]);
+      setReels(reelsData);
+      setFanSizes(fanSizesData);
+      setBottomSizes(bottomSizesData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
+  };
 
   const stats = useMemo(() => {
     const totalWeight = reels.reduce((sum, reel) => sum + reel.weight, 0);
     const avgGSM = reels.length > 0 ? reels.reduce((sum, reel) => sum + reel.gsm, 0) / reels.length : 0;
     const paperTypes = [...new Set(reels.map(reel => reel.paperType))];
-    
     return {
       totalReels: reels.length,
       totalWeight: totalWeight.toFixed(2),
@@ -31,6 +62,10 @@ export const Dashboard = () => {
     };
   }, [reels, fanSizes, bottomSizes]);
 
+  if (loading) {
+    return <Spinner label="Loading dashboard..." />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -38,6 +73,13 @@ export const Dashboard = () => {
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Overview of your manufacturing operations</p>
         </div>
+        <Button size="icon" variant="ghost" onClick={handleRefresh} disabled={refreshing || loading} title="Refresh">
+          {refreshing ? (
+            <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+          ) : (
+            <RefreshCw className="h-5 w-5" />
+          )}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -145,4 +187,4 @@ export const Dashboard = () => {
       </div>
     </div>
   );
-};
+}

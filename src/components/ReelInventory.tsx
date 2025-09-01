@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Download, Edit, Trash2, Package } from "lucide-react";
+import { Plus, Search, Download, Edit, Trash2, Package, RefreshCw } from "lucide-react";
 import { 
   getReels, 
   saveReels, 
   generateReelId, 
   exportToCSV, 
+  deleteReel, 
   type ReelInventory as ReelType 
 } from "@/lib/storage";
+import { Spinner } from "./Spinner";
 import { useToast } from "@/hooks/use-toast";
 
 const PAPER_TYPES = [
@@ -29,10 +31,13 @@ const PAPER_TYPES = [
 ];
 
 export const ReelInventory = () => {
-  const [reels, setReels] = useState<ReelType[]>(getReels);
+  const [reels, setReels] = useState<ReelType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingReel, setEditingReel] = useState<ReelType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -42,6 +47,29 @@ export const ReelInventory = () => {
     paperType: "",
     notes: ""
   });
+
+  const fetchReels = async () => {
+    setLoading(true);
+    try {
+      const data = await getReels();
+      setReels(data);
+    } catch {
+      toast({ title: "Error", description: "Failed to load reels", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchReels();
+    setRefreshing(false);
+  };
 
   const filteredReels = useMemo(() => {
     return reels.filter(reel =>
@@ -62,9 +90,10 @@ export const ReelInventory = () => {
     setEditingReel(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (submitting) return;
     if (!formData.width || !formData.gsm || !formData.weight || !formData.paperType) {
       toast({
         title: "Validation Error",
@@ -73,38 +102,41 @@ export const ReelInventory = () => {
       });
       return;
     }
-
-    const reelData: ReelType = {
-      id: editingReel ? editingReel.id : generateReelId(),
-      width: parseFloat(formData.width),
-      gsm: parseFloat(formData.gsm),
-      weight: parseFloat(formData.weight),
-      paperType: formData.paperType,
-      date: editingReel ? editingReel.date : new Date().toISOString().split('T')[0],
-      notes: formData.notes
-    };
-
-    let updatedReels;
-    if (editingReel) {
-      updatedReels = reels.map(reel => reel.id === editingReel.id ? reelData : reel);
+    setSubmitting(true);
+    try {
+      let id = editingReel ? editingReel.id : undefined;
+      if (!id) {
+        id = await generateReelId();
+      }
+      const reelData: ReelType = {
+        id,
+        width: parseFloat(formData.width),
+        gsm: parseFloat(formData.gsm),
+        weight: parseFloat(formData.weight),
+        paperType: formData.paperType,
+        date: editingReel ? editingReel.date : new Date().toISOString().split('T')[0],
+        notes: formData.notes
+      };
+      let updatedReels;
+      if (editingReel) {
+        updatedReels = reels.map(reel => reel.id === editingReel.id ? reelData : reel);
+      } else {
+        updatedReels = [...reels, reelData];
+      }
+      setReels(updatedReels);
+      await saveReels(updatedReels);
       toast({
         title: "Success",
-        description: "Reel updated successfully",
+        description: editingReel ? "Reel updated successfully" : "Reel added successfully",
         variant: "default"
       });
-    } else {
-      updatedReels = [...reels, reelData];
-      toast({
-        title: "Success", 
-        description: "Reel added successfully",
-        variant: "default"
-      });
+      setIsDialogOpen(false);
+      resetForm();
+    } catch {
+      toast({ title: "Error", description: "Failed to save reels", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-
-    setReels(updatedReels);
-    saveReels(updatedReels);
-    setIsDialogOpen(false);
-    resetForm();
   };
 
   const handleEdit = (reel: ReelType) => {
@@ -119,16 +151,21 @@ export const ReelInventory = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const updatedReels = reels.filter(reel => reel.id !== id);
-    setReels(updatedReels);
-    saveReels(updatedReels);
-    toast({
-      title: "Success",
-      description: "Reel deleted successfully",
-      variant: "default"
-    });
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteReel(id);
+      toast({
+        title: "Success",
+        description: "Reel deleted successfully",
+        variant: "default"
+      });
+      await fetchReels();
+    } catch {
+      toast({ title: "Error", description: "Failed to delete reel", variant: "destructive" });
+    }
   };
+
 
   const handleExport = () => {
     exportToCSV(reels, 'reel-inventory');
@@ -139,6 +176,10 @@ export const ReelInventory = () => {
     });
   };
 
+  if (loading) {
+    return <Spinner label="Loading reels..." />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -146,9 +187,18 @@ export const ReelInventory = () => {
           <h1 className="text-3xl font-bold text-foreground">Reel Inventory</h1>
           <p className="text-muted-foreground mt-1">Manage your paper reel stock</p>
         </div>
-        <Badge variant="secondary" className="px-4 py-2">
-          {reels.length} Reels
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="px-4 py-2">
+            {reels.length} Reels
+          </Badge>
+          <Button size="icon" variant="ghost" onClick={handleRefresh} disabled={refreshing || loading} title="Refresh">
+            {refreshing ? (
+              <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-elegant border-border/50">
@@ -234,8 +284,8 @@ export const ReelInventory = () => {
                       />
                     </div>
                     <div className="flex gap-2 pt-4">
-                      <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90">
-                        {editingReel ? "Update Reel" : "Add Reel"}
+                      <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90" disabled={submitting}>
+                        {submitting ? (editingReel ? "Updating..." : "Adding...") : (editingReel ? "Update Reel" : "Add Reel")}
                       </Button>
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                         Cancel
@@ -320,4 +370,4 @@ export const ReelInventory = () => {
       </Card>
     </div>
   );
-};
+}

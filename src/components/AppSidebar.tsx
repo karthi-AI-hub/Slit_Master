@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from "react";
+import { LogOut } from "lucide-react";
+import { useAuth } from "@/components/useAuth";
 import { NavLink } from "react-router-dom";
-import { Package, Layers, Circle, Calculator, Scissors, Trash2, Menu } from "lucide-react";
-import { clearAllData } from "@/lib/storage";
+import { Package, Layers, Circle, Calculator, Scissors } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const menu = [
@@ -15,6 +15,7 @@ const menu = [
 
 export function AppSidebar({ activeTab, setActiveTab }) {
   const { toast } = useToast();
+  const { signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -23,21 +24,10 @@ export function AppSidebar({ activeTab, setActiveTab }) {
     return () => window.removeEventListener('open-mobile-sidebar', handler);
   }, []);
 
-  const handleClearAllData = () => {
-    clearAllData();
-    toast({
-      title: "Data Cleared",
-      description: "All data has been cleared from browser storage",
-      variant: "default"
-    });
-    window.location.reload();
-  };
-
-  // Sidebar content as a component for reuse
   const SidebarContent = (
     <>
       <div className="pt-6 pb-4 flex flex-col items-center">
-        <img src="/logo.png" alt="Logo" className="w-20 h-14 object-contain mb-2" />
+  <img src="/logo.png" alt="Logo" className="w-20 h-20 object-cover rounded-full shadow mb-2" />
         <h1 className="text-lg font-bold text-foreground">Shakthi</h1>
         <p className="text-xs text-muted-foreground">Innovative Crafts</p>
       </div>
@@ -64,11 +54,11 @@ export function AppSidebar({ activeTab, setActiveTab }) {
       </nav>
       <div className="px-4 pb-6 mt-auto">
         <button
-          onClick={handleClearAllData}
+          onClick={signOut}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-xl font-medium text-base bg-red-50 text-red-700 hover:bg-red-100 transition"
         >
-          <Trash2 size={20} />
-          Clear All Data
+          <LogOut size={20} />
+          Logout
         </button>
       </div>
     </>

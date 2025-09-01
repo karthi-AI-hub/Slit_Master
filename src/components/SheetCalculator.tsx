@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calculator, ChevronDown, Save, Download, Trash2 } from "lucide-react";
@@ -13,8 +14,10 @@ import {
   getSheetPresets,
   saveSheetPresets,
   exportToCSV,
-  type SheetCalculationPreset 
+  type SheetCalculationPreset, 
+  type ReelInventory
 } from "@/lib/storage";
+import { Spinner } from "./Spinner";
 import { useToast } from "@/hooks/use-toast";
 
 interface CalculationResult {
@@ -41,13 +44,41 @@ export const SheetCalculator = () => {
   const [gsm, setGsm] = useState("");
   const [wastage, setWastage] = useState("2");
   const [roundingMode, setRoundingMode] = useState("Down");
-  const [presets, setPresets] = useState<SheetCalculationPreset[]>(getSheetPresets);
+  const [presets, setPresets] = useState<SheetCalculationPreset[]>([]);
   const [presetName, setPresetName] = useState("");
   const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [reels, setReels] = useState<ReelInventory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const reels = getReels();
+  const fetchSheetData = async () => {
+    setLoading(true);
+    try {
+      const [reelsData, presetsData] = await Promise.all([
+        getReels(),
+        getSheetPresets()
+      ]);
+      setReels(reelsData);
+      setPresets(presetsData);
+    } catch {
+      toast({ title: "Error", description: "Failed to load reels or presets", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSheetData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchSheetData();
+    setRefreshing(false);
+  };
 
   const convertToMeters = (value: number, unit: string): number => {
     switch (unit) {
@@ -111,7 +142,7 @@ export const SheetCalculator = () => {
     }
   };
 
-  const savePreset = () => {
+  const savePreset = async () => {
     if (!presetName) {
       toast({
         title: "Validation Error",
@@ -137,15 +168,20 @@ export const SheetCalculator = () => {
 
     const updatedPresets = [...presets, preset];
     setPresets(updatedPresets);
-    saveSheetPresets(updatedPresets);
+    setLoading(true);
+    try {
+      await saveSheetPresets(updatedPresets);
+      toast({
+        title: "Success",
+        description: "Calculation preset saved",
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to save preset", variant: "destructive" });
+    }
     setIsPresetDialogOpen(false);
     setPresetName("");
-    
-    toast({
-      title: "Success",
-      description: "Calculation preset saved",
-      variant: "default"
-    });
+    setLoading(false);
   };
 
   const loadPreset = (preset: SheetCalculationPreset) => {
@@ -158,7 +194,6 @@ export const SheetCalculator = () => {
     setGsm(preset.gsm.toString());
     setWastage(preset.wastage.toString());
     setRoundingMode(preset.roundingMode);
-    
     toast({
       title: "Preset Loaded",
       description: `Loaded preset: ${preset.name}`,
@@ -166,16 +201,21 @@ export const SheetCalculator = () => {
     });
   };
 
-  const deletePreset = (id: string) => {
+  const deletePreset = async (id: string) => {
     const updatedPresets = presets.filter(p => p.id !== id);
     setPresets(updatedPresets);
-    saveSheetPresets(updatedPresets);
-    
-    toast({
-      title: "Success",
-      description: "Preset deleted",
-      variant: "default"
-    });
+    setLoading(true);
+    try {
+      await saveSheetPresets(updatedPresets);
+      toast({
+        title: "Success",
+        description: "Preset deleted",
+        variant: "default"
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete preset", variant: "destructive" });
+    }
+    setLoading(false);
   };
 
   const exportResults = () => {
@@ -211,6 +251,10 @@ export const SheetCalculator = () => {
     });
   };
 
+  if (loading) {
+    return <Spinner label="Loading sheet calculator..." />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -218,9 +262,18 @@ export const SheetCalculator = () => {
           <h1 className="text-3xl font-bold text-foreground">Sheet Calculator</h1>
           <p className="text-muted-foreground mt-1">Calculate paper sheets from reel specifications</p>
         </div>
-        <Badge variant="secondary" className="px-4 py-2">
-          {presets.length} Presets
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="px-4 py-2">
+            {presets.length} Presets
+          </Badge>
+          <Button size="icon" variant="ghost" onClick={handleRefresh} disabled={refreshing || loading} title="Refresh">
+            {refreshing ? (
+              <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -502,4 +555,4 @@ export const SheetCalculator = () => {
       )}
     </div>
   );
-};
+}
