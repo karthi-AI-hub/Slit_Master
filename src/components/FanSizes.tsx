@@ -12,6 +12,7 @@ import {
   saveFanSizes, 
   generateFanId, 
   exportToCSV, 
+  deleteFanSize,
   type FanSize 
 } from "@/lib/storage";
 import { Spinner } from "./Spinner";
@@ -162,7 +163,7 @@ export const FanSizes = () => {
     const updatedFanSizes = fanSizes.filter(fan => fan.id !== id);
     setFanSizes(updatedFanSizes);
     try {
-      await saveFanSizes(updatedFanSizes);
+      await deleteFanSize(id);
       toast({
         title: "Success",
         description: "Fan size deleted successfully",
@@ -174,14 +175,14 @@ export const FanSizes = () => {
   };
 
 
-  const handleExport = () => {
-    exportToCSV(fanSizes, 'fan-sizes');
-    toast({
-      title: "Export Complete",
-      description: "Fan sizes exported to CSV",
-      variant: "default"
-    });
-  };
+  // const handleExport = () => {
+  //   exportToCSV(fanSizes, 'fan-sizes');
+  //   toast({
+  //     title: "Export Complete",
+  //     description: "Fan sizes exported to CSV",
+  //     variant: "default"
+  //   });
+  // };
 
   if (loading) {
     return <Spinner label="Loading fan sizes..." />;

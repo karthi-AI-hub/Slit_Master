@@ -31,6 +31,7 @@ export interface BottomSize {
 }
 
 export interface SlitPlanResult {
+  id?: string;
   combination: string;
   usedWidth: number;
   waste: number;
@@ -84,6 +85,11 @@ export const saveFanSizes = async (fanSizes: FanSize[]): Promise<void> => {
   if (error) throw error;
 };
 
+export const deleteFanSize = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('fan_sizes').delete().eq('id', id);
+  if (error) throw error;
+};
+
 export const generateFanId = async (): Promise<string> => {
   const fanSizes = await getFanSizes();
   const count = fanSizes.length + 1;
@@ -98,6 +104,11 @@ export const getBottomSizes = async (): Promise<BottomSize[]> => {
 
 export const saveBottomSizes = async (bottomSizes: BottomSize[]): Promise<void> => {
   const { error } = await supabase.from('bottom_sizes').upsert(bottomSizes, { onConflict: 'id' });
+  if (error) throw error;
+};
+
+export const deleteBottomSize = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('bottom_sizes').delete().eq('id', id);
   if (error) throw error;
 };
 
@@ -129,7 +140,7 @@ export const saveSheetPresets = async (presets: SheetCalculationPreset[]): Promi
   if (error) throw error;
 };
 
-export const exportToCSV = (data: any[], filename: string): void => {
+export const exportToCSV = <T extends Record<string, unknown>>(data: T[], filename: string): void => {
   if (data.length === 0) return;
   
   const headers = Object.keys(data[0]).join(',');

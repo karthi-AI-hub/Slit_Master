@@ -181,7 +181,7 @@ export const SlitPlanner = () => {
     setResults(finalResults);
     setLoading(true);
     try {
-      await saveSlitResults(finalResults);
+      // await saveSlitResults(finalResults);
       toast({
         title: "Success",
         description: `Generated ${finalResults.length} slit plan combinations`,
@@ -218,12 +218,12 @@ export const SlitPlanner = () => {
       });
       return;
     }
-    exportToCSV(results, 'slit-plan-results');
-    toast({
-      title: "Export Complete",
-      description: "Slit plan results exported to CSV",
-      variant: "default"
-    });
+    // exportToCSV(results, 'slit-plan-results');
+    // toast({
+    //   title: "Export Complete",
+    //   description: "Slit plan results exported to CSV",
+    //   variant: "default"
+    // });
   };
 
   const bestEfficiency = useMemo(() => {

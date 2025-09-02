@@ -12,6 +12,7 @@ import {
   saveBottomSizes, 
   generateBottomId, 
   exportToCSV, 
+  deleteBottomSize,
   type BottomSize 
 } from "@/lib/storage";
 import { Spinner } from "./Spinner";
@@ -128,7 +129,7 @@ export const BottomSizes = () => {
     const updatedBottomSizes = bottomSizes.filter(bottom => bottom.id !== id);
     setBottomSizes(updatedBottomSizes);
     try {
-      await saveBottomSizes(updatedBottomSizes);
+      await deleteBottomSize(id);
       toast({
         title: "Success",
         description: "Bottom size deleted successfully",
@@ -140,14 +141,14 @@ export const BottomSizes = () => {
   };
 
 
-  const handleExport = () => {
-    exportToCSV(bottomSizes, 'bottom-sizes');
-    toast({
-      title: "Export Complete",
-      description: "Bottom sizes exported to CSV",
-      variant: "default"
-    });
-  };
+  // const handleExport = () => {
+  //   exportToCSV(bottomSizes, 'bottom-sizes');
+  //   toast({
+  //     title: "Export Complete",
+  //     description: "Bottom sizes exported to CSV",
+  //     variant: "default"
+  //   });
+  // };
 
   if (loading) {
     return <Spinner label="Loading bottom sizes..." />;
