@@ -129,6 +129,56 @@ export const saveSlitResults = async (results: SlitPlanResult[]): Promise<void> 
   if (error) throw error;
 };
 
+export const getSlitReels = async (): Promise<ReelInventory[]> => {
+  const { data, error } = await supabase.from('slit_reels').select('*').order('id', { ascending: true });
+  if (error) throw error;
+  return data as ReelInventory[];
+};
+
+export const generateSlitReelId = async (): Promise<string> => {
+  const slitReels = await getSlitReels();
+  const count = slitReels.length + 1;
+  return `SR${count.toString().padStart(3, '0')}`;
+};
+
+export const saveSlitReels = async (slitReels: ReelInventory[]): Promise<void> => {
+  const { error } = await supabase.from('slit_reels').upsert(slitReels, { onConflict: 'id' });
+  if (error) {
+    console.error('Error saving slit reels:', error);
+    throw error;
+  }
+};
+
+export const deleteSlitReel = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('slit_reels').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export const getSlitBottoms = async (): Promise<ReelInventory[]> => {
+  const { data, error } = await supabase.from('slit_bottoms').select('*').order('id', { ascending: true });
+  if (error) throw error;
+  return data as ReelInventory[];
+};
+
+export const generateSlitBottomId = async (): Promise<string> => {
+  const slitBottoms = await getSlitBottoms();
+  const count = slitBottoms.length + 1;
+  return `SB${count.toString().padStart(3, '0')}`;
+};
+
+export const saveSlitBottoms = async (slitBottoms: ReelInventory[]): Promise<void> => {
+  const { error } = await supabase.from('slit_bottoms').upsert(slitBottoms, { onConflict: 'id' });
+  if (error) {
+    console.error('Error saving slit bottoms:', error);
+    throw error;
+  }
+};
+
+export const deleteSlitBottom = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('slit_bottoms').delete().eq('id', id);
+  if (error) throw error;
+};
+
 export const getSheetPresets = async (): Promise<SheetCalculationPreset[]> => {
   const { data, error } = await supabase.from('sheet_presets').select('*').order('id', { ascending: true });
   if (error) throw error;

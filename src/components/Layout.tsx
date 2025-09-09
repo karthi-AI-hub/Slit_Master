@@ -7,6 +7,8 @@ import { FanSizes } from "./FanSizes";
 import { BottomSizes } from "./BottomSizes";
 import { SlitPlanner } from "./SlitPlanner";
 import { SheetCalculator } from "./SheetCalculator";
+import SlitReelPage from "./SlitReelPage";
+import SlitBottomPage from "./SlitBottomPage";
 
 export const Layout = () => {
   const [activeTab, setActiveTab] = useState("inventory");
@@ -23,6 +25,10 @@ export const Layout = () => {
         return <BottomSizes />;
       case "slit-planner":
         return <SlitPlanner />;
+      case "slit-reel":
+        return <SlitReelPage />;
+      case "slit-bottom":
+        return <SlitBottomPage />;
       case "sheet-calculator":
         return <SheetCalculator />;
       default:
@@ -68,7 +74,6 @@ export const Layout = () => {
                   © 2025 Shakthi Innovative Crafts. Manufacturing Management
                   System.
                 </p>
-                {/* <p className="mt-1">Data stored locally in browser. Export regularly for backup.</p> */}
               </div>
             </div>
           </footer>

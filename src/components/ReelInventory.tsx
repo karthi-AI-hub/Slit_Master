@@ -45,7 +45,8 @@ export const ReelInventory = () => {
     gsm: "",
     weight: "",
     paperType: "",
-    notes: ""
+    notes: "",
+    date: new Date().toISOString().split('T')[0]
   });
 
   const fetchReels = async () => {
@@ -85,7 +86,8 @@ export const ReelInventory = () => {
       gsm: "",
       weight: "",
       paperType: "",
-      notes: ""
+      notes: "",
+      date: new Date().toISOString().split('T')[0]
     });
     setEditingReel(null);
   };
@@ -94,7 +96,7 @@ export const ReelInventory = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-    if (!formData.width || !formData.gsm || !formData.weight || !formData.paperType) {
+    if (!formData.width || !formData.gsm || !formData.weight || !formData.paperType || !formData.date) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -114,7 +116,7 @@ export const ReelInventory = () => {
         gsm: parseFloat(formData.gsm),
         weight: parseFloat(formData.weight),
         paperType: formData.paperType,
-        date: editingReel ? editingReel.date : new Date().toISOString().split('T')[0],
+        date: formData.date,
         notes: formData.notes
       };
       let updatedReels;
@@ -146,7 +148,8 @@ export const ReelInventory = () => {
       gsm: reel.gsm.toString(),
       weight: reel.weight.toString(),
       paperType: reel.paperType,
-      notes: reel.notes
+      notes: reel.notes,
+      date: reel.date || new Date().toISOString().split('T')[0]
     });
     setIsDialogOpen(true);
   };
@@ -167,14 +170,14 @@ export const ReelInventory = () => {
   };
 
 
-  const handleExport = () => {
-    exportToCSV(reels, 'reel-inventory');
-    toast({
-      title: "Export Complete",
-      description: "Reel inventory exported to CSV",
-      variant: "default"
-    });
-  };
+  // const handleExport = () => {
+  //   exportToCSV(reels, 'reel-inventory');
+  //   toast({
+  //     title: "Export Complete",
+  //     description: "Reel inventory exported to CSV",
+  //     variant: "default"
+  //   });
+  // };
 
   if (loading) {
     return <Spinner label="Loading reels..." />;
@@ -281,6 +284,16 @@ export const ReelInventory = () => {
                         value={formData.notes}
                         onChange={(e) => setFormData({...formData, notes: e.target.value})}
                         placeholder="Additional notes..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="date">Date *</Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={formData.date}
+                        onChange={e => setFormData({ ...formData, date: e.target.value })}
+                        required
                       />
                     </div>
                     <div className="flex gap-2 pt-4">

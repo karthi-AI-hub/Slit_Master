@@ -15,6 +15,12 @@ import {
   saveSlitResults,
   exportToCSV, 
   saveReels,
+  getSlitReels,
+  saveSlitReels,
+  generateSlitReelId,
+  getSlitBottoms,
+  saveSlitBottoms,
+  generateSlitBottomId,
   type SlitPlanResult, 
   type ReelInventory, 
   type FanSize, 
@@ -230,42 +236,70 @@ export const SlitPlanner = () => {
     return results.length > 0 ? Math.max(...results.map(r => r.efficiency)) : 0;
   }, [results]);
 
-  // Create child reels from a result
   const handleCreateChildReels = async (result: {
     sideArr: { name: string; width: number }[];
     botArr: { name: string; width: number }[];
   }) => {
     const reel = reels.find(r => r.id === selectedReel);
     if (!reel) return;
-    const updatedReels = reels.filter(r => r.id !== reel.id);
     const pWidth = reel.width, pWeight = reel.weight;
-    function pushChild(w: number, note: string) {
-      const childWeight = pWeight ? +(pWeight * (w / pWidth)).toFixed(3) : 0;
-      updatedReels.push({
-        id: `R${String(updatedReels.length + 1).padStart(3, '0')}`,
-        width: +w,
-        gsm: reel.gsm,
-        weight: childWeight,
-        paperType: reel.paperType,
-        date: new Date().toISOString().slice(0, 10),
-        notes: note
-      });
-    }
-    result.sideArr.forEach((s) => pushChild(s.width, `Slit child ${s.name}`));
-    result.botArr.forEach((b) => pushChild(b.width, `Slit bottom ${b.name}`));
-    setLoading(true);
+    
     try {
-      await saveReels(updatedReels);
-      setReels(updatedReels);
+      const [existingSlitReels, existingSlitBottoms] = await Promise.all([
+        getSlitReels(),
+        getSlitBottoms()
+      ]);
+
+      const newSlitReels = [...existingSlitReels];
+      const newSlitBottoms = [...existingSlitBottoms];
+
+      let slitReelCount = existingSlitReels.length;
+      for (let idx = 0; idx < result.sideArr.length; idx++) {
+        const s = result.sideArr[idx];
+        const childWeight = pWeight ? +(pWeight * (s.width / pWidth)).toFixed(3) : 0;
+        slitReelCount++;
+        const slitReelId = `SR${slitReelCount.toString().padStart(3, '0')}`;
+        newSlitReels.push({
+          id: slitReelId,
+          width: +s.width,
+          gsm: reel.gsm,
+          weight: childWeight,
+          paperType: reel.paperType,
+          date: new Date().toISOString().slice(0, 10),
+          notes: `Slit Reel ${s.name}`
+        });
+      }
+
+      let slitBottomCount = existingSlitBottoms.length;
+      for (let idx = 0; idx < result.botArr.length; idx++) {
+        const b = result.botArr[idx];
+        const childWeight = pWeight ? +(pWeight * (b.width / pWidth)).toFixed(3) : 0;
+        slitBottomCount++;
+        const slitBottomId = `SB${slitBottomCount.toString().padStart(3, '0')}`;
+        newSlitBottoms.push({
+          id: slitBottomId,
+          width: +b.width,
+          gsm: reel.gsm,
+          weight: childWeight,
+          paperType: reel.paperType,
+          date: new Date().toISOString().slice(0, 10),
+          notes: `Slit Bottom ${b.name}`
+        });
+      }
+
+      await Promise.all([
+        saveSlitReels(newSlitReels),
+        saveSlitBottoms(newSlitBottoms)
+      ]);
+
       toast({
         title: "Child reels created",
-        description: `Created ${result.sideArr.length + result.botArr.length} child reels`,
+        description: `Created ${result.sideArr.length} Slit Reels and ${result.botArr.length} Slit Bottoms`,
         variant: "default"
       });
-    } catch {
+    } catch (error) {
       toast({ title: "Error", description: "Failed to save child reels", variant: "destructive" });
     }
-    setLoading(false);
   };
 
   if (loading) {

@@ -10,6 +10,8 @@ const menu = [
   { label: "Fan Sizes", icon: Layers, id: "fan-sizes" },
   { label: "Bottom Sizes", icon: Circle, id: "bottom-sizes" },
   { label: "Slit Planner", icon: Scissors, id: "slit-planner" },
+  { label: "Slit Reel", icon: Layers, id: "slit-reel" },
+  { label: "Slit Bottom", icon: Circle, id: "slit-bottom" },
   { label: "Sheet Calculator", icon: Calculator, id: "sheet-calculator" },
 ];
 
